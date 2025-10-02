@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSInputMonitoringUsageDescription</key>
+	<string>Notate 只在你输入 “///” 后短暂记录你接下来的文字，用于快速记事。除触发内容外，我们不会保存其他按键。</string>
+</dict>
+</plist>
