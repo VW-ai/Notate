@@ -1,57 +1,78 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 
 extension Notification.Name {
     static let notateDidDetectTrigger = Notification.Name("Notate.didDetectTrigger")
     static let notateDidFinishCapture  = Notification.Name("Notate.didFinishCapture")
 }
 
-final class CaptureEngine {
+struct CaptureResult {
+    let content: String
+    let triggerUsed: String
+    let type: EntryType
+}
+
+final class CaptureEngine: ObservableObject {
     enum State { case idle, capturing }
 
-    private var state: State = .idle
+    private var state: State = State.idle
+    private var cancellables = Set<AnyCancellable>()
 
-    // 触发符 rolling buffer
+    // 触发符 rolling buffer - now supports multiple triggers
     private var triggerBuf: [Character] = []
-    private let trigger: [Character] = Array("///")
+    private var currentTrigger: String = ""
+    private var currentTriggerConfig: TriggerConfig?
 
     // 捕获相关
     private var captureText: String = ""
     private var lastKeystrokeAt: Date = .init()
     private var idleTimer: Timer?
+    private var isIMEComposing = false
 
     // 事件监听
     private var eventTap: CFMachPort?
     private var runLoopSrc: CFRunLoopSource?
 
     private let translator = KeyTranslator()
+    private let configManager = ConfigurationManager.shared
+    private let databaseManager = DatabaseManager.shared
 
     func start() {
-        // 仅监听 keyDown
-        let mask = (1 << CGEventType.keyDown.rawValue)
+        print("🚀 启动捕获引擎...")
+        
+        // Listen for both keyDown and keyUp events for better IME support
+        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
         let callback: CGEventTapCallBack = { (proxy, type, cgEvent, refcon) -> Unmanaged<CGEvent>? in
             // 把 self 取出来
             let engine = Unmanaged<CaptureEngine>
                 .fromOpaque(refcon!)
                 .takeUnretainedValue()
 
-            guard type == .keyDown else {
-                return Unmanaged.passUnretained(cgEvent)
+            // Handle IME composing state
+            if type == CGEventType.keyUp {
+                engine.handleKeyUp(cgEvent)
+            } else if type == CGEventType.keyDown {
+                // 取键码/修饰键 -> 字符
+                let keyCode = cgEvent.getIntegerValueField(.keyboardEventKeycode)
+                let flags   = cgEvent.flags
+                let ch      = engine.translator?.char(from: CGKeyCode(keyCode), with: flags)
+
+                // 添加调试信息
+                if let char = ch, !char.isEmpty {
+                    print("⌨️ 捕获到按键: '\(char)' (键码: \(keyCode))")
+                }
+
+                engine.handleKeystroke(ch)
             }
-
-            // 取键码/修饰键 -> 字符
-            let keyCode = cgEvent.getIntegerValueField(.keyboardEventKeycode)
-            let flags   = cgEvent.flags
-            let ch      = engine.translator?.char(from: CGKeyCode(keyCode), with: flags)
-
-            engine.handleKeystroke(ch)
+            
             return Unmanaged.passUnretained(cgEvent)
         }
 
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .listenOnly, // 只监听，不拦截
+            options: .defaultTap, // 使用默认选项，允许拦截
             eventsOfInterest: CGEventMask(mask),
             callback: callback,
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
@@ -65,9 +86,44 @@ final class CaptureEngine {
         runLoopSrc = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSrc, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        
+        print("✅ Capture Engine started with \(configManager.getEnabledTriggers().count) triggers")
+    }
+    
+    func stop() {
+        idleTimer?.invalidate()
+        idleTimer = nil
+        
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+        }
+        
+        if let source = runLoopSrc {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+        }
+        
+        eventTap = nil
+        runLoopSrc = nil
+        
+        // Reset state
+        triggerBuf.removeAll()
+        captureText = ""
+        currentTrigger = ""
+        currentTriggerConfig = nil
+        state = State.idle
+        
+        print("✅ Capture Engine stopped")
     }
 
     // MARK: - 内部逻辑
+
+    private func handleKeyUp(_ event: CGEvent) {
+        // Reset IME composing state on key up
+        if configManager.configuration.enableIMEComposing {
+            // 简化IME检测：在keyUp时重置IME状态
+            isIMEComposing = false
+        }
+    }
 
     private func handleKeystroke(_ ch: String?) {
         lastKeystrokeAt = Date()
@@ -75,31 +131,75 @@ final class CaptureEngine {
         switch state {
         case .idle:
             guard let c = ch?.first else { return }
-            // 只保留最近 3 个字符，匹配 ///
+            
+            // 过滤掉删除键和其他控制字符
+            if c == "\u{8}" || c == "\u{7F}" { // Backspace or Delete
+                print("🗑️ 检测到删除键，忽略")
+                return
+            }
+            
+            // Add character to rolling buffer
             triggerBuf.append(c)
-            if triggerBuf.count > trigger.count { triggerBuf.removeFirst() }
-            if triggerBuf == trigger {
-                state = .capturing
-                captureText = ""
-                NotificationCenter.default.post(name: .notateDidDetectTrigger, object: nil)
-                startIdleTimer()
+            
+            // Keep buffer size reasonable (max length of longest trigger)
+            let maxTriggerLength = configManager.getEnabledTriggers().map { $0.trigger.count }.max() ?? 3
+            if triggerBuf.count > maxTriggerLength {
+                triggerBuf.removeFirst()
+            }
+            
+            // Check against all enabled triggers
+            let currentBuffer = String(triggerBuf)
+            print("🔍 检查触发器: '\(currentBuffer)'")
+            
+            for triggerConfig in configManager.getEnabledTriggers() {
+                if currentBuffer.hasSuffix(triggerConfig.trigger) {
+                    // Found a matching trigger
+                    print("✅ 检测到触发器: '\(triggerConfig.trigger)' -> \(triggerConfig.defaultType.displayName)")
+                    currentTrigger = triggerConfig.trigger
+                    currentTriggerConfig = triggerConfig
+                    state = State.capturing
+                    captureText = ""
+                    isIMEComposing = false
+                    
+                    NotificationCenter.default.post(name: .notateDidDetectTrigger, object: triggerConfig.trigger)
+                    startIdleTimer()
+                    break
+                }
             }
 
         case .capturing:
+            // 暂时禁用IME检测，因为它干扰了正常的英文输入
+            // TODO: 实现更智能的IME检测
+            
             guard let s = ch else { return }
+            
+            // 处理删除键
+            if s == "\u{8}" || s == "\u{7F}" { // Backspace or Delete
+                if !captureText.isEmpty {
+                    captureText.removeLast()
+                    print("🗑️ 删除字符，当前文本: '\(captureText)'")
+                } else {
+                    print("🗑️ 文本已空，无法删除")
+                }
+                return
+            }
+            
             if s == "\r" || s == "\n" {
+                print("⏎ 检测到回车键，完成捕获")
                 finishCapture()
             } else {
                 captureText.append(contentsOf: s)
+                print("📝 捕获文本: '\(captureText)'")
             }
         }
     }
 
     private func startIdleTimer() {
         idleTimer?.invalidate()
+        let timeout = configManager.configuration.captureTimeout
         idleTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            if Date().timeIntervalSince(self.lastKeystrokeAt) > 3.0 {
+            if Date().timeIntervalSince(self.lastKeystrokeAt) > timeout {
                 self.finishCapture()
             }
         }
@@ -110,14 +210,73 @@ final class CaptureEngine {
         idleTimer?.invalidate()
         idleTimer = nil
 
-        let text = captureText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.isEmpty {
-            NotificationCenter.default.post(name: .notateDidFinishCapture, object: text)
+        let rawText = captureText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !rawText.isEmpty else {
+            print("⚠️ 捕获文本为空，重置状态")
+            resetCapture()
+            return
         }
-
-        // 复位
+        
+        print("🎯 完成捕获:")
+        print("  - 原始文本: '\(rawText)'")
+        print("  - 触发器: '\(currentTrigger)'")
+        
+        // Clean content and detect type
+        let cleanedContent = configManager.cleanContent(rawText)
+        let entryType = configManager.detectEntryType(from: rawText, triggerUsed: currentTrigger)
+        
+        print("  - 清理后文本: '\(cleanedContent)'")
+        print("  - 检测类型: \(entryType.displayName)")
+        
+        // Create entry
+        let entry = Entry(
+            type: entryType,
+            content: cleanedContent,
+            triggerUsed: currentTrigger,
+            status: entryType == EntryType.todo ? EntryStatus.open : EntryStatus.open,
+            priority: entryType == EntryType.todo ? EntryPriority.medium : nil
+        )
+        
+        // Save to database
+        databaseManager.saveEntry(entry)
+        print("💾 已保存到数据库")
+        
+        // Clear input if enabled
+        if configManager.configuration.autoClearInput {
+            clearCurrentInput()
+        }
+        
+        // Post notification with result
+        let result = CaptureResult(content: cleanedContent, triggerUsed: currentTrigger, type: entryType)
+        NotificationCenter.default.post(name: .notateDidFinishCapture, object: result)
+        
+        resetCapture()
+    }
+    
+    private func resetCapture() {
         triggerBuf.removeAll()
         captureText = ""
-        state = .idle
+        currentTrigger = ""
+        currentTriggerConfig = nil
+        state = State.idle
+        isIMEComposing = false
+    }
+    
+    private func clearCurrentInput() {
+        // This is a simplified implementation
+        // In a real app, you'd need to send key events to clear the current input field
+        // For now, we'll just simulate it with a series of backspace events
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            // Send backspace events to clear the input
+            // This is a basic implementation - you might want to make it more sophisticated
+            for _ in 0..<self.captureText.count {
+                let backspaceEvent = CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: true)
+                backspaceEvent?.post(tap: .cghidEventTap)
+                
+                let backspaceUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: false)
+                backspaceUpEvent?.post(tap: .cghidEventTap)
+            }
+        }
     }
 }
