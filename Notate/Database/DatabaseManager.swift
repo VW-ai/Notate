@@ -12,6 +12,10 @@ final class DatabaseManager: ObservableObject {
     private let queue = DispatchQueue(label: "io.github.V1ctor2182.Notate.DatabaseQueue")
     private let queueKey = DispatchSpecificKey<Void>()
     private let sqliteTransient: sqlite3_destructor_type = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+    // Fixed: Add synchronization for database repair operations
+    private var isRepairingDatabase = false
+    private let repairLock = NSLock()
     
     @Published var entries: [Entry] = []
     
@@ -73,11 +77,34 @@ final class DatabaseManager: ObservableObject {
     }
 
     private func finalizeOpenStatements(on db: OpaquePointer?) {
+        // Fixed: Improved statement finalization with error handling and safety checks
         guard let db else { return }
+
+        var finalizedCount = 0
+        var errorCount = 0
+
         var statement = sqlite3_next_stmt(db, nil)
         while let current = statement {
-            sqlite3_finalize(current)
+            let result = sqlite3_finalize(current)
+            if result == SQLITE_OK {
+                finalizedCount += 1
+            } else {
+                errorCount += 1
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("⚠️ Failed to finalize statement: \(errorMsg) (code: \(result))")
+            }
+
             statement = sqlite3_next_stmt(db, nil)
+
+            // Safety break to prevent infinite loops
+            if finalizedCount + errorCount > 100 {
+                print("⚠️ Too many statements to finalize, possible leak detected")
+                break
+            }
+        }
+
+        if finalizedCount > 0 || errorCount > 0 {
+            print("📊 Statement cleanup: \(finalizedCount) finalized, \(errorCount) errors")
         }
     }
 
@@ -270,17 +297,28 @@ final class DatabaseManager: ObservableObject {
     }
 
     private func repairDatabaseIfNeededInternal() -> Bool {
+        // Fixed: Prevent concurrent repair operations using lock
+        guard repairLock.try() else {
+            print("⚠️ Database repair already in progress, skipping...")
+            return isRepairingDatabase ? false : true // Return false if repair is ongoing
+        }
+        defer { repairLock.unlock() }
+
+        // If already repairing, return false
+        if isRepairingDatabase {
+            return false
+        }
+
         guard let db = db else {
             print("❌ Database pointer missing during repair check")
             return false
         }
+
         // 尝试修复数据库
         let integrityResult = sqlite3_exec(db, "PRAGMA integrity_check", nil, nil, nil)
         if integrityResult != SQLITE_OK {
             print("⚠️ Database integrity check failed, attempting repair...")
-            
-            // 尝试重建数据库
-            return rebuildDatabaseInternal()
+            return performDatabaseRebuild()
         }
 
         // 额外检查：尝试执行一个简单查询
@@ -288,50 +326,65 @@ final class DatabaseManager: ObservableObject {
         if countResult != SQLITE_OK {
             let errorMsg = String(cString: sqlite3_errmsg(db))
             print("⚠️ Database query test failed: \(errorMsg), rebuilding...")
-            return rebuildDatabaseInternal()
+            return performDatabaseRebuild()
         }
-        
+
         // 数据质量检查：使用更安全的方法检查数据
+        if checkDataQuality() {
+            return performDatabaseRebuild()
+        }
+
+        return true
+    }
+
+    private func checkDataQuality() -> Bool {
+        guard let db = db else { return true } // Assume corrupted if no db
+
         var hasCorruptedData = false
-        
-        // 使用sqlite3_exec而不是prepared statement来避免语句泄漏
+
+        // Thread-safe corruption detection
         let callback: @convention(c) (UnsafeMutableRawPointer?, Int32, UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?, UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) -> Int32 = { userData, argc, argv, colNames in
-            if argc >= 3, let argv = argv {
-                let id = String(cString: argv[0]!)
-                let type = String(cString: argv[1]!)
-                let content = String(cString: argv[2]!)
-                
+            if argc >= 3, let argv = argv, let userData = userData {
+                // Safely extract strings
+                guard let idPtr = argv[0], let typePtr = argv[1], let contentPtr = argv[2] else {
+                    userData.assumingMemoryBound(to: Bool.self).pointee = true
+                    return 1 // Stop iteration on error
+                }
+
+                let id = String(cString: idPtr)
+                let type = String(cString: typePtr)
+                let content = String(cString: contentPtr)
+
                 // 检查是否包含乱码字符（非打印字符或异常字符）
                 let isCorrupted = id.contains { $0.asciiValue != nil && $0.asciiValue! < 32 && $0.asciiValue! != 9 && $0.asciiValue! != 10 && $0.asciiValue! != 13 } ||
                                 type.contains { $0.asciiValue != nil && $0.asciiValue! < 32 && $0.asciiValue! != 9 && $0.asciiValue! != 10 && $0.asciiValue! != 13 } ||
                                 content.contains { $0.asciiValue != nil && $0.asciiValue! < 32 && $0.asciiValue! != 9 && $0.asciiValue! != 10 && $0.asciiValue! != 13 }
-                
+
                 if isCorrupted {
                     print("⚠️ Corrupted data detected in database: ID='\(id)', Type='\(type)', Content='\(content)'")
-                    // 设置损坏标志
-                    if let userData = userData {
-                        userData.assumingMemoryBound(to: Bool.self).pointee = true
-                    }
+                    userData.assumingMemoryBound(to: Bool.self).pointee = true
+                    return 1 // Stop iteration on first corruption
                 }
             }
             return 0
         }
-        
-        var corruptedFlag = false
-        let qualityResult = sqlite3_exec(db, "SELECT id, type, content FROM entries LIMIT 1", callback, &corruptedFlag, nil)
-        
-        if qualityResult == SQLITE_OK {
-            hasCorruptedData = corruptedFlag
-        } else {
+
+        let qualityResult = sqlite3_exec(db, "SELECT id, type, content FROM entries LIMIT 1", callback, &hasCorruptedData, nil)
+
+        if qualityResult != SQLITE_OK {
             let errorMsg = String(cString: sqlite3_errmsg(db))
             print("⚠️ Error during data quality check: \(errorMsg)")
+            return true // Assume corrupted on error
         }
-        
-        // 如果检测到损坏数据，重建数据库
-        if hasCorruptedData {
-            return rebuildDatabaseInternal()
-        }
-        return true
+
+        return hasCorruptedData
+    }
+
+    private func performDatabaseRebuild() -> Bool {
+        isRepairingDatabase = true
+        defer { isRepairingDatabase = false }
+
+        return rebuildDatabaseInternal()
     }
 
     private func rebuildDatabaseInternal() -> Bool {
@@ -745,67 +798,135 @@ final class DatabaseManager: ObservableObject {
     // MARK: - Encryption Key Management
     
     private static func loadOrCreateEncryptionKey() -> SymmetricKey {
+        // Fixed: Add proper error handling for keychain operations
         let keychain = Keychain(service: "com.notate.app")
         let keyIdentifier = "notate-encryption-key"
-        
-        if let keyData = keychain[keyIdentifier] {
-            return SymmetricKey(data: keyData)
-        } else {
-            let newKey = SymmetricKey(size: .bits256)
-            keychain[keyIdentifier] = newKey.withUnsafeBytes { Data($0) }
-            return newKey
+
+        do {
+            // Try to load existing key
+            if let keyData = try keychain.getData(for: keyIdentifier) {
+                print("✅ Loaded existing encryption key from keychain")
+                return SymmetricKey(data: keyData)
+            }
+        } catch KeychainError.itemNotFound {
+            print("ℹ️ No existing encryption key found, creating new one")
+        } catch {
+            print("⚠️ Failed to load encryption key: \(error), creating fallback key")
+        }
+
+        // Create new key
+        let newKey = SymmetricKey(size: .bits256)
+        let keyData = newKey.withUnsafeBytes { Data($0) }
+
+        do {
+            try keychain.setData(keyData, for: keyIdentifier)
+            print("✅ Created and stored new encryption key")
+        } catch {
+            print("❌ Failed to store encryption key: \(error)")
+            print("⚠️ Using in-memory key only - data will not be encrypted persistently")
+        }
+
+        return newKey
+    }
+}
+
+// MARK: - Keychain Error Types
+enum KeychainError: Error, LocalizedError {
+    case itemNotFound
+    case duplicateItem
+    case invalidData
+    case unhandledError(OSStatus)
+
+    var errorDescription: String? {
+        switch self {
+        case .itemNotFound:
+            return "Item not found in keychain"
+        case .duplicateItem:
+            return "Item already exists in keychain"
+        case .invalidData:
+            return "Invalid data format"
+        case .unhandledError(let status):
+            return "Keychain operation failed with status: \(status)"
         }
     }
 }
 
-// MARK: - Simple Keychain Wrapper
+// MARK: - Enhanced Keychain Wrapper with Error Handling
 private class Keychain {
     private let service: String
-    
+
     init(service: String) {
         self.service = service
     }
-    
-    subscript(key: String) -> Data? {
-        get {
-            let query: [String: Any] = [
+
+    func getData(for key: String) throws -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        switch status {
+        case errSecSuccess:
+            guard let data = result as? Data else {
+                throw KeychainError.invalidData
+            }
+            return data
+        case errSecItemNotFound:
+            throw KeychainError.itemNotFound
+        default:
+            throw KeychainError.unhandledError(status)
+        }
+    }
+
+    func setData(_ data: Data, for key: String) throws {
+        // First, try to update existing item
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key
+        ]
+
+        let attributes: [String: Any] = [
+            kSecValueData as String: data
+        ]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+
+        if updateStatus == errSecItemNotFound {
+            // Item doesn't exist, create new one
+            let newAttributes: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
                 kSecAttrAccount as String: key,
-                kSecReturnData as String: true,
-                kSecMatchLimit as String: kSecMatchLimitOne
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             ]
-            
-            var result: CFTypeRef?
-            let status = SecItemCopyMatching(query as CFDictionary, &result)
-            
-            if status == errSecSuccess, let data = result as? Data {
-                return data
+
+            let addStatus = SecItemAdd(newAttributes as CFDictionary, nil)
+            if addStatus != errSecSuccess {
+                throw KeychainError.unhandledError(addStatus)
             }
-            return nil
+        } else if updateStatus != errSecSuccess {
+            throw KeychainError.unhandledError(updateStatus)
         }
-        set {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: key
-            ]
-            
-            // Delete existing item
-            SecItemDelete(query as CFDictionary)
-            
-            // Add new item if data is provided
-            if let data = newValue {
-                let attributes: [String: Any] = [
-                    kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrService as String: service,
-                    kSecAttrAccount as String: key,
-                    kSecValueData as String: data,
-                    kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-                ]
-                
-                SecItemAdd(attributes as CFDictionary, nil)
-            }
+    }
+
+    func deleteData(for key: String) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key
+        ]
+
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            throw KeychainError.unhandledError(status)
         }
     }
 }
