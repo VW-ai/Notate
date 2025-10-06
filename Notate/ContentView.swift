@@ -94,7 +94,7 @@ struct ContentView: View {
     }
     
     private var tabSelectionView: some View {
-        Picker("Tab", selection: $appState.selectedTab) {
+        Picker(selection: $appState.selectedTab, label: EmptyView()) {
             ForEach(AppState.TabSelection.allCases, id: \.self) { tab in
                 Text(tabDisplayName(for: tab)).tag(tab)
             }
