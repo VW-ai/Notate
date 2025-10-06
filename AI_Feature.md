@@ -14,16 +14,13 @@
 ## Doing Real Work
 - **Calendar Automation**: Parse intent like “move lunch with Alice to tomorrow” and auto-update calendar events, prompting only when ambiguity exists.
 - **Follow-up Execution**: For “email Y about Z”, draft the message, attach relevant docs, and queue it for one-tap send inside Mail or the Activity Feed.
-- **Checklist Expansion**: Turn vague TODOs into structured subtasks, automatically handling straightforward steps (creating docs, gathering links) and returning progress updates.
-- **Meeting Intelligence**: Before meetings, assemble briefs from recent entries; afterward, synthesize notes and push resultant tasks into the queue.
-- **Cross-App Sync**: Sync critical actions with a user’s preferred task system (Things, Todoist, Jira) and reconcile status bi-directionally.
+- **Checklist Expansion**: Turn vague TODOs into structured subtasks, automatically handling straightforward steps (creating docs, gathering links) and returning progress updates. For example, buying milk would result into a search and return structured, concise information for milks to buy, with link.
+- **Cross-App Sync**: Sync critical actions with a user’s preferred task system (Things, Todoist, Jira) and reconcile status bi-directionally. [optional]
 
 ## Frictionless Interaction
-- **Universal Capture**: Replace multiple triggers with a single hotkey command palette that understands natural language, voice, or quick shorthand. Triggers remain as fallbacks.
+- **Universal Capture**: Replace multiple triggers with a single hotkey command palette that understands natural language, voice, or quick shorthand. Triggers remain as fallbacks. [I dont understand this part tbh]
 - **“Just Do It” Mode**: By default, the agent executes low-risk tasks immediately. Use inline toasts for status, escalate to confirmations only for high-impact actions.
-- **Context Sniffers**: Watch clipboard, active window titles, calendar context, and recent conversations to auto-fill missing entities (people, files, deadlines) with zero extra input.
 - **Activity Feed**: A minimal timeline that shows what the agent is doing (planned → in progress → done) with a single control to undo or edit—no deep settings pages.
-- **Progressive Trust**: Adapt confirmation behavior based on user acceptance history, learning when silent execution is appropriate.
 
 ## Implementation Roadmap
 1. **Agent Skeleton**: Implement AgentOrchestrator, task schema, and metadata updates. Start with mocked capability execution to validate flow.
