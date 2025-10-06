@@ -1,3 +1,4 @@
 *.png
-.env*.xcuserstate
+.env
+*.xcuserstate
 *.xcuserstate
