@@ -350,7 +350,7 @@ struct EntryTypeBadge: View {
         switch type {
         case .todo:
             return ModernDesignSystem.Colors.todoColor
-        case .thought:
+        case .thought, .piece:
             return ModernDesignSystem.Colors.thoughtColor
         }
     }
@@ -359,7 +359,7 @@ struct EntryTypeBadge: View {
         switch type {
         case .todo:
             return ModernDesignSystem.Colors.todoColor.opacity(0.15)
-        case .thought:
+        case .thought, .piece:
             return ModernDesignSystem.Colors.thoughtColor.opacity(0.15)
         }
     }

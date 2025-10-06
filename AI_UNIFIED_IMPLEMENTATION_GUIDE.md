@@ -2,106 +2,77 @@
 
 ## Product Vision
 
-Transform Notate into an intelligent assistant that understands user intent and provides contextually relevant, actionable suggestions. The system differentiates between content types (phone numbers need contact creation, romantic thoughts need restaurant suggestions) and provides 5-15 varied, useful recommendations with smart automated actions.
+Transform Notate into an intelligent assistant that **executes actions** based on user intent. The system uses existing triggers to determine content type (TODO vs PIECE) and autonomously executes appropriate tool actions while providing helpful research via AI-generated markdown summaries.
 
 ## Core Principles
 
-### 1. Content-Aware Intelligence
-The AI analyzes content to understand **what type of information** it is, not just **what it says**.
+### 1. Trigger-Based Classification (No AI Classification Needed)
+User intent is explicit through trigger choice:
+- `///` → **TODO** (actionable items)
+- `,,,` → **PIECE** (information, thoughts, data)
 
-### 2. Progressive Enhancement
-Start simple (calendar + search), evolve to sophisticated (smart actions + contextual suggestions).
+### 2. Autonomous Tool Execution
+AI agent has full access to system tools and auto-executes appropriate actions:
+- **Apple Reminders** for TODOs
+- **Calendar** for time-based content
+- **Contacts** for phone numbers/emails
+- **Maps** for locations
+- **Web Search** with markdown research summaries
 
-### 3. Smart Actions with User Control
-- **Act automatically** with user consent for clear patterns (phone numbers → contacts)
-- **Provide reversible actions** to maintain user control
-- **Offer editing capabilities** for refinement
+### 3. Research-Focused AI
+AI provides value through **intelligent research and organization**, not classification:
+- Generate helpful markdown summaries
+- Organize web search results
+- Provide actionable insights
 
 ## Technical Architecture
 
-### Unified Data Model
+### Simplified Data Model
 
-#### Enhanced Entry Metadata (Single Source of Truth)
+#### Entry Metadata (Focused on Actions & Research)
 ```json
 {
-  "ai_analysis": {
-    "content_type": "actionable_task",
-    "confidence": 0.95,
-    "processed_at": "2024-01-15T10:00:00Z",
-    "processing_version": "v1.0",
-    "extracted_entities": {
-      "task": "buy milk",
-      "urgency": "normal",
-      "location_relevant": true
-    }
-  },
-
-  "calendar_integration": {
-    "event_id": "ABC123",
-    "due_date": "2024-01-15T14:30:00Z",
-    "synced": true,
-    "last_sync": "2024-01-15T10:00:00Z",
-    "detected_datetime": {
-      "has_datetime": true,
-      "raw_date": "2024-01-15",
-      "raw_time": "14:30",
-      "is_relative": false,
-      "confidence": 0.95,
-      "description": "tomorrow at 2:30pm"
-    }
-  },
-
-  "smart_actions": [
+  "ai_actions": [
     {
       "id": "action_001",
-      "type": "add_to_contacts",
+      "type": "apple_reminders",
       "status": "executed",
       "data": {
-        "phone": "555-123-4567",
-        "name": "Unknown Contact",
-        "contact_id": "ABC123"
+        "reminder_id": "ABC123",
+        "title": "Buy milk",
+        "due_date": "2024-01-15T14:30:00Z"
       },
       "executed_at": "2024-01-15T10:05:00Z",
       "reversible": true,
       "reverse_data": {
-        "contact_existed": false,
-        "original_name": null
+        "reminder_existed": false
       }
-    }
-  ],
-
-  "ai_suggestions": [
+    },
     {
-      "id": "sug_001",
-      "type": "location",
-      "category": "grocery_store",
-      "title": "Whole Foods Market",
-      "description": "Organic groceries, 0.3 miles away",
-      "action": {
-        "type": "open_maps",
-        "data": {"query": "Whole Foods near me"}
+      "id": "action_002",
+      "type": "web_search",
+      "status": "executed",
+      "data": {
+        "query": "best grocery stores NYC",
+        "results_stored": true
       },
-      "confidence": 0.9,
-      "clicked": false,
-      "generated_at": "2024-01-15T10:00:00Z"
+      "executed_at": "2024-01-15T10:06:00Z",
+      "reversible": false
     }
   ],
 
-  "analytics": {
-    "total_suggestions_generated": 12,
-    "total_suggestions_clicked": 3,
-    "user_location": "New York, NY",
-    "generation_cost": 0.002,
-    "processing_time_ms": 1250,
-    "processing_history": [
-      {
-        "action": "content_classification",
-        "timestamp": "2024-01-15T10:00:00Z",
-        "result": "success",
-        "model": "claude-3-haiku",
-        "cost": 0.001
-      }
-    ]
+  "research_results": {
+    "format": "markdown",
+    "content": "# Grocery Shopping Research\n\n## Nearby Options\n- **Whole Foods** (0.3 mi) - Organic focus, open until 10pm\n- **Safeway** (0.8 mi) - 24 hours, good prices\n\n## Money Saving Tips\n- Store brands are 20-30% cheaper\n- Shop Tuesday evenings for best discounts\n\n## Delivery Options\n- Instacart - 2 hour delivery\n- Amazon Fresh - Same day if ordered by 2pm",
+    "generated_at": "2024-01-15T10:07:00Z",
+    "research_cost": 0.003
+  },
+
+  "processing_meta": {
+    "processed_at": "2024-01-15T10:05:00Z",
+    "processing_version": "v1.0",
+    "total_cost": 0.003,
+    "processing_time_ms": 2100
   }
 }
 ```
@@ -111,206 +82,265 @@ Start simple (calendar + search), evolve to sophisticated (smart actions + conte
 ```swift
 // MARK: - Main AI Metadata Structure
 struct AIMetadata: Codable {
-    var analysis: ContentAnalysis?
-    var calendarIntegration: CalendarIntegration?
-    var smartActions: [SmartAction] = []
-    var suggestions: [AISuggestion] = []
-    var analytics: AnalyticsData?
+    var actions: [AIAction] = []
+    var researchResults: ResearchResults?
+    var processingMeta: ProcessingMeta?
 }
 
-// MARK: - Content Analysis
-struct ContentAnalysis: Codable {
-    let contentType: ContentType
-    let confidence: Double
-    let processedAt: Date
-    let processingVersion: String
-    let extractedEntities: [String: FlexibleCodable]
-}
-
-enum ContentType: String, CaseIterable, Codable {
-    case phoneNumber = "phone_number"
-    case email = "email"
-    case actionableTask = "actionable_task"
-    case romanticSocial = "romantic_social"
-    case learningResearch = "learning_research"
-    case locationTravel = "location_travel"
-    case generalThought = "general_thought"
-    case personName = "person_name"
-    case dateTime = "date_time"
-}
-
-// MARK: - Calendar Integration
-struct CalendarIntegration: Codable {
-    var eventId: String?
-    var dueDate: Date?
-    var synced: Bool = false
-    var lastSync: Date?
-    var detectedDateTime: DetectedDateTime?
-}
-
-struct DetectedDateTime: Codable {
-    let hasDateTime: Bool
-    let rawDate: String?
-    let rawTime: String?
-    let isRelative: Bool
-    let confidence: Double
-    let description: String?
-}
-
-// MARK: - Smart Actions
-struct SmartAction: Codable {
+// MARK: - AI Actions
+struct AIAction: Codable {
     let id: String
-    let type: SmartActionType
+    let type: AIActionType
     var status: ActionStatus
     let data: [String: FlexibleCodable]
+    let executedAt: Date?
     let reversible: Bool
     let reverseData: [String: FlexibleCodable]?
-    let executedAt: Date?
 }
 
-enum SmartActionType: String, CaseIterable, Codable {
-    case addToContacts = "add_to_contacts"
-    case addToCalendar = "add_to_calendar"
-    case openMap = "open_map"
-    case createReminder = "create_reminder"
+enum AIActionType: String, CaseIterable, Codable {
+    case appleReminders = "apple_reminders"
+    case calendar = "calendar"
+    case contacts = "contacts"
+    case maps = "maps"
+    case webSearch = "web_search"
 }
 
 enum ActionStatus: String, Codable {
     case pending, executing, executed, failed, reversed
 }
 
-// MARK: - AI Suggestions
-struct AISuggestion: Codable {
-    let id: String
-    let type: SuggestionType
-    let category: String
-    let title: String
-    let description: String
-    let action: SuggestionAction
-    let confidence: Double
-    var clicked: Bool = false
+// MARK: - Research Results
+struct ResearchResults: Codable {
+    let format: ResultFormat = .markdown
+    let content: String
     let generatedAt: Date
-    var clickedAt: Date?
+    let researchCost: Double
 }
 
-enum SuggestionType: String, CaseIterable, Codable {
-    case location, app, webSearch, product, learning, entertainment, tool
+enum ResultFormat: String, Codable {
+    case markdown
 }
 
-struct SuggestionAction: Codable {
-    let type: ActionType
-    let data: [String: FlexibleCodable]
-
-    enum ActionType: String, CaseIterable, Codable {
-        case openApp, openURL, openMaps, webSearch, showInApp
-    }
+// MARK: - Processing Metadata
+struct ProcessingMeta: Codable {
+    let processedAt: Date
+    let processingVersion: String
+    let totalCost: Double
+    let processingTimeMs: Int
 }
 ```
 
 ### Service Architecture
 
 ```swift
-// MARK: - Main Intelligent Service
+// MARK: - Autonomous AI Agent
 @MainActor
-class IntelligentSuggestionService: ObservableObject {
+class AutonomousAIAgent: ObservableObject {
     private let aiService: AIService
-    private let calendarService: CalendarService
-    private let contactService: ContactService
-    private let locationService: LocationService
+    private let toolService: ToolService
     private let cacheService: AICacheService
 
-    func processEntry(_ entry: Entry) async -> ProcessingResult {
-        // 1. Check cache first
-        if let cached = await checkCache(for: entry.content) {
-            return cached
+    func processEntry(_ entry: Entry) async {
+        // No classification needed - use trigger type
+        switch entry.type {
+        case .todo:
+            await processTodo(entry)
+        case .thought:
+            await processPiece(entry)
+        }
+    }
+
+    private func processTodo(_ entry: Entry) async {
+        var actions: [AIAction] = []
+
+        // 1. Always add to Apple Reminders
+        if let reminderAction = await addToReminders(entry.content) {
+            actions.append(reminderAction)
         }
 
-        // 2. Classify content
-        let analysis = await classifyContent(entry.content)
-
-        // 3. Execute smart actions if needed
-        let actions = await executeSmartActions(for: analysis, entry: entry)
-
-        // 4. Generate contextual suggestions
-        let suggestions = await generateSuggestions(for: analysis)
-
-        // 5. Cache results
-        let result = ProcessingResult(analysis: analysis, actions: actions, suggestions: suggestions)
-        await cacheResult(result, for: entry.content)
-
-        return result
-    }
-
-    private func classifyContent(_ content: String) async -> ContentAnalysis {
-        // AI classification logic
-    }
-
-    private func executeSmartActions(for analysis: ContentAnalysis, entry: Entry) async -> [SmartAction] {
-        var actions: [SmartAction] = []
-
-        switch analysis.contentType {
-        case .phoneNumber:
-            if let phoneAction = await createContactAction(from: content) {
-                actions.append(phoneAction)
-            }
-        case .dateTime:
-            if let calendarAction = await createCalendarAction(from: analysis) {
+        // 2. Check for time components and add to Calendar
+        if containsTimeKeywords(entry.content) {
+            if let calendarAction = await addToCalendar(entry.content) {
                 actions.append(calendarAction)
             }
-        default:
-            break
         }
 
-        return actions
+        // 3. Research and generate markdown summary
+        let research = await generateTodoResearch(entry.content)
+
+        // 4. Save all results
+        let metadata = AIMetadata(
+            actions: actions,
+            researchResults: research,
+            processingMeta: ProcessingMeta(
+                processedAt: Date(),
+                processingVersion: "v1.0",
+                totalCost: research?.researchCost ?? 0,
+                processingTimeMs: 0
+            )
+        )
+
+        await saveAIMetadata(metadata, for: entry)
     }
 
-    private func generateSuggestions(for analysis: ContentAnalysis) async -> [AISuggestion] {
-        // Context-aware suggestion generation
+    private func processPiece(_ entry: Entry) async {
+        var actions: [AIAction] = []
+
+        // 1. Pattern matching for specific data types
+        if isPhoneNumber(entry.content) {
+            if let contactAction = await addToContacts(entry.content) {
+                actions.append(contactAction)
+            }
+        }
+
+        if isLocation(entry.content) {
+            if let mapAction = await saveToMaps(entry.content) {
+                actions.append(mapAction)
+            }
+        }
+
+        // 2. Research if it's not just raw data
+        var research: ResearchResults?
+        if !isRawData(entry.content) {
+            research = await generatePieceResearch(entry.content)
+        }
+
+        // 3. Save results
+        let metadata = AIMetadata(
+            actions: actions,
+            researchResults: research,
+            processingMeta: ProcessingMeta(
+                processedAt: Date(),
+                processingVersion: "v1.0",
+                totalCost: research?.researchCost ?? 0,
+                processingTimeMs: 0
+            )
+        )
+
+        await saveAIMetadata(metadata, for: entry)
     }
 }
 
-// MARK: - Basic AI Service
+// MARK: - Pattern Matching (No AI)
+extension AutonomousAIAgent {
+    private func isPhoneNumber(_ text: String) -> Bool {
+        let phoneRegex = #"(\+?\d{1,3}[\s.-]?)?\(?[\d\s.-]{10,}\)?"#
+        return text.range(of: phoneRegex, options: .regularExpression) != nil
+    }
+
+    private func containsTimeKeywords(_ text: String) -> Bool {
+        let timeKeywords = ["tomorrow", "today", "tonight", "morning", "afternoon", "evening", "pm", "am", "o'clock", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        return timeKeywords.contains { text.lowercased().contains($0) }
+    }
+
+    private func isLocation(_ text: String) -> Bool {
+        // Check for address patterns, "at [place]", etc.
+        let locationPatterns = ["\\d+\\s+\\w+\\s+(street|st|avenue|ave|road|rd|drive|dr)", "at\\s+[A-Z]"]
+        return locationPatterns.contains { pattern in
+            text.range(of: pattern, options: .regularExpression) != nil
+        }
+    }
+
+    private func isRawData(_ text: String) -> Bool {
+        // Phone numbers, emails, addresses without context
+        return isPhoneNumber(text) || isEmail(text) || isJustAnAddress(text)
+    }
+}
+
+// MARK: - Tool Service
+class ToolService {
+    func addToReminders(_ content: String) async -> AIAction? {
+        // EventKit Reminders integration
+        // Parse dates from content using simple keyword matching
+    }
+
+    func addToCalendar(_ content: String) async -> AIAction? {
+        // EventKit Calendar integration
+        // Extract time/date information
+    }
+
+    func addToContacts(_ content: String) async -> AIAction? {
+        // Contacts framework integration
+        // Extract name and phone number
+    }
+
+    func saveToMaps(_ content: String) async -> AIAction? {
+        // MapKit integration or bookmark creation
+    }
+}
+
+// MARK: - AI Research Service
 class AIService {
     private let apiKey: String
     private let baseURL = "https://api.anthropic.com/v1/messages"
 
-    func classifyContent(_ text: String) async throws -> ContentAnalysis {
-        let prompt = buildClassificationPrompt(text)
+    func generateTodoResearch(_ content: String) async throws -> ResearchResults {
+        let prompt = """
+        Research this TODO and create a helpful markdown guide: "\(content)"
+
+        Provide practical information including:
+        - Nearby locations if relevant
+        - Best practices or tips
+        - Tools, apps, or resources that could help
+        - Time-saving strategies
+
+        Format as markdown with clear sections. Be concise but thorough.
+        """
+
         let response = try await makeAPICall(prompt: prompt, model: "claude-3-haiku-20240307")
-        return try parseClassificationResponse(response)
+
+        return ResearchResults(
+            content: response,
+            generatedAt: Date(),
+            researchCost: 0.003
+        )
     }
 
-    func generateSuggestions(for analysis: ContentAnalysis, userLocation: String?) async throws -> [AISuggestion] {
-        let prompt = buildSuggestionPrompt(analysis: analysis, location: userLocation)
+    func generatePieceResearch(_ content: String) async throws -> ResearchResults {
+        let prompt = """
+        Research this topic and create a helpful markdown summary: "\(content)"
+
+        Provide relevant information including:
+        - Context or background information
+        - Related concepts or connections
+        - Useful resources for learning more
+        - Practical applications
+
+        Format as markdown. Be informative and well-organized.
+        """
+
         let response = try await makeAPICall(prompt: prompt, model: "claude-3-haiku-20240307")
-        return try parseSuggestionsResponse(response)
+
+        return ResearchResults(
+            content: response,
+            generatedAt: Date(),
+            researchCost: 0.003
+        )
     }
 
     private func makeAPICall(prompt: String, model: String) async throws -> String {
         // Claude API implementation
-    }
-}
+        var request = URLRequest(url: URL(string: baseURL)!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
-// MARK: - Cache Service
-class AICacheService {
-    private var contentCache: [String: ProcessingResult] = [:]
-    private var cacheTimestamps: [String: Date] = [:]
-    private let cacheExpiry: TimeInterval = 24 * 60 * 60 // 24 hours
+        let requestBody = [
+            "model": model,
+            "max_tokens": 1000,
+            "messages": [
+                ["role": "user", "content": prompt]
+            ]
+        ]
 
-    func getCached(for content: String) -> ProcessingResult? {
-        let key = content.sha256
-        guard let result = contentCache[key],
-              let timestamp = cacheTimestamps[key],
-              Date().timeIntervalSince(timestamp) < cacheExpiry else {
-            return nil
-        }
-        return result
-    }
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-    func cache(_ result: ProcessingResult, for content: String) {
-        let key = content.sha256
-        contentCache[key] = result
-        cacheTimestamps[key] = Date()
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let response = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let content = response["content"] as! [[String: Any]]
+        return content[0]["text"] as! String
     }
 }
 ```
@@ -346,215 +376,135 @@ extension DatabaseManager {
     // MARK: - AI Queries
     func getEntriesNeedingAIProcessing() -> [Entry] {
         return entries.filter { entry in
-            guard let aiMetadata = getAIMetadata(for: entry) else { return true }
-            return aiMetadata.analysis == nil
+            getAIMetadata(for: entry) == nil
         }
     }
 
-    func getEntriesWithCalendarEvents() -> [Entry] {
+    func getEntriesWithActions() -> [Entry] {
         return entries.filter { entry in
             guard let aiMetadata = getAIMetadata(for: entry) else { return false }
-            return aiMetadata.calendarIntegration?.eventId != nil
-        }
-    }
-
-    // MARK: - AI Indexes (for performance)
-    private func createAIIndexes() {
-        let indexes = [
-            "CREATE INDEX IF NOT EXISTS idx_ai_processed ON entries(json_extract(metadata, '$.ai.analysis.processedAt'));",
-            "CREATE INDEX IF NOT EXISTS idx_calendar_synced ON entries(json_extract(metadata, '$.ai.calendarIntegration.synced'));",
-            "CREATE INDEX IF NOT EXISTS idx_content_type ON entries(json_extract(metadata, '$.ai.analysis.contentType'));"
-        ]
-
-        for indexSQL in indexes {
-            sqlite3_exec(db, indexSQL, nil, nil, nil)
+            return !aiMetadata.actions.isEmpty
         }
     }
 }
 ```
 
-## Content Classification & Examples
+## Processing Examples
 
-### 1. **Phone Numbers**
-- **Pattern:** `555-123-4567`, `(555) 123-4567`, `+1-555-123-4567`
-- **Smart Action:** Auto-add to Contacts
-- **Suggestions:** None (action-focused)
-- **UI:** Reverse button + Edit contact
+### TODO: "Buy milk tomorrow"
+**Auto-Executed Actions:**
+1. Add to Apple Reminders with "tomorrow" date
+2. Web search for grocery information
 
-### 2. **Actionable Tasks: "buy milk"**
-**Suggestions (8-12):**
-```
-🛒 Nearby Stores
-- Whole Foods (0.3 mi) - Open until 10pm
-- Safeway (0.8 mi) - 24 hours
+**Generated Research:**
+```markdown
+# Grocery Shopping: Milk
 
-📱 Delivery Apps
-- Instacart - 2-hour delivery
-- Amazon Fresh - Same day delivery
+## Nearby Options
+- **Whole Foods** (0.3 mi) - Organic selection, open until 10pm
+- **Safeway** (0.8 mi) - 24 hours, competitive prices
 
-💰 Money Saving
-- Milk price comparison 2024
-- Best store brands vs name brands
+## Money Saving Tips
+- Store brands typically 20-30% cheaper than name brands
+- Tuesday evenings often have best discounts
+- Buy larger quantities if you use milk regularly
 
-📋 Shopping Help
-- Grocery list templates
-- Meal planning with dairy
-```
+## Delivery Options
+- **Instacart** - 2 hour delivery, $3.99 fee
+- **Amazon Fresh** - Same day if ordered by 2pm
 
-### 3. **Romantic Content: "anniversary dinner"**
-**Suggestions (10-15):**
-```
-🍽️ Fine Dining Nearby
-- Le Bernardin (2.1 mi) - French, $$$
-- The Modern (1.8 mi) - Contemporary
-
-🍷 Experiences
-- Wine tasting classes for couples
-- Cooking classes nearby
-
-💡 Inspiration
-- Anniversary gift ideas 2024
-- Romantic date night activities
-
-🏨 Staycation
-- Boutique hotels with packages
-- Weekend getaway deals
+## Milk Types to Consider
+- Whole milk for cooking/baking
+- 2% for general use
+- Oat milk as dairy alternative
 ```
 
-### 4. **Learning Topics: "learn SwiftUI"**
-**Suggestions (8-12):**
-```
-📚 Official Resources
-- Apple SwiftUI Documentation
-- WWDC SwiftUI sessions
+### PIECE: "555-123-4567 John from the meeting"
+**Auto-Executed Actions:**
+1. Add to Contacts: Name "John", Phone "555-123-4567"
 
-🎓 Courses
-- Stanford CS193p (Free)
-- Udemy SwiftUI Masterclass
+**No Research Generated** (raw contact data)
 
-📖 Books
-- "SwiftUI by Tutorials"
-- "Thinking in SwiftUI"
+### TODO: "Learn SwiftUI"
+**Auto-Executed Actions:**
+1. Add to Apple Reminders as ongoing task
+2. Web search for SwiftUI learning resources
 
-🛠️ Practice
-- Hacking with Swift challenges
-- SwiftUI Lab projects
-```
+**Generated Research:**
+```markdown
+# Learning SwiftUI
 
-## AI Processing Prompts
+## Getting Started
+SwiftUI is Apple's modern UI framework. Best approach is hands-on practice with real projects.
 
-### Content Classification Prompt
-```
-Analyze this user input and classify it:
+## Free Resources
+- **Stanford CS193p** - Excellent free course covering fundamentals
+- **Apple Documentation** - Comprehensive reference with examples
+- **WWDC Sessions** - Latest features and best practices
 
-Input: "{user_content}"
-User context: {location: "NYC", time: "evening"}
+## Paid Options
+- **Hacking with Swift** - Practical tutorials with projects
+- **SwiftUI by Tutorials** - Ray Wenderlich comprehensive guide
 
-Classify into ONE primary type:
-- phone_number: Phone numbers in any format
-- email: Email addresses
-- actionable_task: Things to do, buy, accomplish
-- romantic_social: Dating, relationships, social activities
-- learning_research: Educational content, how-to questions
-- location_travel: Places to go, travel plans
-- general_thought: Random observations, ideas
-- person_name: Names of people
-- date_time: Specific dates, times, appointments
+## Practice Ideas
+- Build a simple to-do app
+- Create a weather app using APIs
+- Practice with different UI components
 
-Return JSON:
-{
-  "type": "actionable_task",
-  "confidence": 0.95,
-  "entities": {"task": "buy milk", "urgency": "normal"},
-  "needs_smart_action": true,
-  "suggested_count": 10,
-  "reasoning": "Clear actionable task with specific item to purchase"
-}
-```
-
-### Suggestion Generation Prompt
-```
-Generate {suggested_count} intelligent, actionable suggestions for:
-
-Content: "{user_content}"
-Type: {content_type}
-User location: {user_location}
-Time: {current_time}
-
-Requirements:
-1. Provide DIVERSE suggestion types (locations, apps, web searches, products)
-2. Include confidence scores (0.1-1.0)
-3. Make suggestions ACTIONABLE with specific apps/URLs/searches
-4. Consider user's location for local recommendations
-5. Range from immediate actions to broader exploration
-
-Return JSON array with:
-- type: location|app|web_search|product|learning|entertainment
-- category: specific subcategory
-- title: Clear, engaging title
-- description: Brief, helpful description
-- action: Specific action to take
-- confidence: How relevant this suggestion is
-
-Example:
-[
-  {
-    "type": "location",
-    "category": "grocery_store",
-    "title": "Whole Foods Market",
-    "description": "Organic groceries, 0.3 miles away",
-    "action": {"type": "open_maps", "query": "Whole Foods near me"},
-    "confidence": 0.9
-  }
-]
+## Community
+- SwiftUI subreddit for questions
+- Apple Developer Forums
+- iOS Dev Slack channels
 ```
 
 ## User Interface Design
 
-### Entry Detail View with AI Suggestions
+### Entry Detail View with Actions & Research
 ```
 ┌────────────────────────────────────────┐
-│ 🟢 TODO: "buy milk"                   │
-│ Created 2 hours ago                    │
+│ 🟢 TODO: "Buy milk tomorrow"          │
+│ Created 1 hour ago                     │
+│                                        │
+│ ✅ AI ACTIONS COMPLETED                │
 │ ┌────────────────────────────────────┐ │
-│ │ 🤖 AI Analysis: Actionable Task    │ │
-│ │ Confidence: 95%                    │ │
-│ │ [ Regenerate Suggestions ]         │ │
+│ │ ✓ Added to Reminders               │ │
+│ │ ✓ Researched grocery options       │ │
+│ │                                    │ │
+│ │ [ ↻ Undo Actions ] [ 📝 Research ] │ │
 │ └────────────────────────────────────┘ │
 │                                        │
-│ 💡 Smart Suggestions (12)             │
+│ 📄 Research Summary                    │
 │ ┌────────────────────────────────────┐ │
-│ │ 🛒 NEARBY STORES                   │ │
-│ │ • Whole Foods (0.3 mi) - Open     │ │
-│ │ • Safeway (0.8 mi) - 24hrs        │ │
+│ │ # Grocery Shopping: Milk           │ │
 │ │                                    │ │
-│ │ 📱 DELIVERY APPS                   │ │
-│ │ • Instacart - 2hr delivery        │ │
-│ │ • Amazon Fresh - Same day          │ │
+│ │ ## Nearby Options                  │ │
+│ │ - **Whole Foods** (0.3 mi)        │ │
+│ │ - **Safeway** (0.8 mi)            │ │
 │ │                                    │ │
-│ │ [Show 8 more suggestions...]       │ │
+│ │ ## Money Saving Tips               │ │
+│ │ - Store brands 20-30% cheaper     │ │
+│ │                                    │ │
+│ │ [Expand to show full research...]  │ │
 │ └────────────────────────────────────┘ │
 └────────────────────────────────────────┘
 ```
 
-### Smart Action UI for Phone Numbers
+### Contact Auto-Creation for Pieces
 ```
 ┌────────────────────────────────────────┐
-│ 📞 "555-123-4567"                     │
+│ 📱 "555-123-4567 John from meeting"   │
 │ Created just now                       │
 │                                        │
-│ ✅ SMART ACTION COMPLETED              │
+│ ✅ CONTACT CREATED                     │
 │ ┌────────────────────────────────────┐ │
-│ │ 👤 Added to Contacts               │ │
-│ │ Name: "Unknown Contact"            │ │
+│ │ 👤 John                            │ │
+│ │ 📞 555-123-4567                    │ │
 │ │                                    │ │
-│ │ [ ↻ Reverse Action ]               │ │
-│ │ [ ✏️ Edit Contact ]                │ │
-│ │ [ 📞 Call Now ]                    │ │
+│ │ [ ↻ Undo ] [ ✏️ Edit ] [ 📞 Call ] │ │
 │ └────────────────────────────────────┘ │
 │                                        │
-│ 🤖 No additional suggestions          │
-│ (Primary intent fulfilled)             │
+│ 🤖 No research needed                 │
+│ (Contact data processed)               │
 └────────────────────────────────────────┘
 ```
 
@@ -566,87 +516,86 @@ Example:
 │ Claude API Key: [●●●●●●●●●●●●]        │
 │ [ Test Connection ]                   │
 │                                       │
-│ ☑️ Smart actions (auto-add contacts)  │
-│ ☑️ Calendar sync for TODOs            │
-│ ☑️ Intelligent suggestions           │
+│ Tool Permissions:                     │
+│ ☑️ Auto-add to Apple Reminders        │
+│ ☑️ Auto-add to Calendar              │
+│ ☑️ Auto-add to Contacts              │
+│ ☑️ Auto-save locations to Maps       │
+│ ☑️ Generate research summaries       │
 │                                       │
 │ 📊 Usage Stats                        │
-│ Processed: 156 entries this month     │
-│ API Cost: $0.23 this month           │
+│ Actions executed: 47 this month       │
+│ Research generated: 23 summaries      │
+│ API Cost: $0.08 this month           │
 │                                       │
-│ Privacy: All processing uses          │
-│ Anthropic's Claude API. No data       │
-│ is stored on external servers.        │
+│ Privacy: Research uses Claude API.    │
+│ All actions use local system tools.   │
 └───────────────────────────────────────┘
 ```
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Weeks 1-2)
-- [ ] **Core AI Service & Database**
-  - Implement basic AIService with Claude API
-  - Add unified AIMetadata structure to Entry model
-  - Create database indexes for AI operations
-  - Add AI settings to SettingsView
+### Phase 1: Core Agent (Weeks 1-2)
+- [ ] **Pattern Matching & Tool Integration**
+  - Implement phone number, time, location detection
+  - Integrate with Apple Reminders, Calendar, Contacts
+  - Basic AI research generation with Claude
 
-- [ ] **Basic Content Classification**
-  - Phone number detection → Contact creation
-  - Date/time detection → Calendar integration
-  - Simple search suggestions (3-5 per entry)
+- [ ] **Database & UI**
+  - Add AIMetadata structure to Entry model
+  - Create action display UI components
+  - Add settings for tool permissions
 
-### Phase 2: Intelligent System (Weeks 3-4)
-- [ ] **Advanced Classification**
-  - 9 content types with confidence scoring
-  - Entity extraction for complex analysis
-  - Smart action execution with reversibility
+### Phase 2: Research Enhancement (Weeks 3-4)
+- [ ] **Improved Research Generation**
+  - Context-aware prompts for different content types
+  - Markdown formatting and display
+  - Research caching to avoid duplicate API calls
 
-- [ ] **Contextual Suggestions**
-  - Location-aware suggestions
-  - 5-15 varied suggestions per content type
-  - Multiple suggestion categories (apps, locations, products)
+- [ ] **Action Management**
+  - Undo/reverse functionality for all actions
+  - Edit capabilities for created contacts/reminders
+  - Action history and analytics
 
-### Phase 3: Optimization & Polish (Weeks 5-6)
-- [ ] **Performance & Caching**
-  - Content hash-based caching
+### Phase 3: Polish & Optimization (Weeks 5-6)
+- [ ] **Performance & Reliability**
   - Background processing queue
-  - Cost optimization and monitoring
+  - Error handling and retry logic
+  - Cost monitoring and optimization
 
-- [ ] **Personalization & Analytics**
-  - User interaction tracking
-  - Suggestion effectiveness analysis
-  - Adaptive suggestion generation
+- [ ] **User Experience**
+  - Better markdown rendering
+  - Action status notifications
+  - Usage analytics and insights
 
 ## Success Metrics
 
-### Engagement Metrics
-- **Suggestion Click Rate:** > 25% of generated suggestions clicked
-- **Smart Action Acceptance:** > 80% of smart actions kept (not reversed)
-- **Feature Adoption:** > 60% of users enable AI features
+### Tool Execution Metrics
+- **Action Success Rate:** > 95% of attempted actions complete successfully
+- **User Reversal Rate:** < 10% of actions reversed by users
+- **Feature Adoption:** > 70% of users enable auto-actions
 
-### Quality Metrics
-- **Classification Accuracy:** > 90% correct content type detection
-- **Suggestion Relevance:** > 75% user satisfaction rating
-- **Local Suggestion Accuracy:** > 85% for location-based suggestions
+### Research Quality Metrics
+- **Research Relevance:** > 80% user satisfaction with generated summaries
+- **Research Usage:** > 40% of research summaries expanded/read by users
 
 ### Performance Metrics
-- **Response Time:** < 3 seconds for suggestion generation
-- **API Cost:** < $0.05 per user per month
-- **Cache Hit Rate:** > 60% for repeated similar content
+- **Action Speed:** < 2 seconds for tool execution
+- **Research Speed:** < 5 seconds for summary generation
+- **API Cost:** < $0.03 per user per month
 
 ## Privacy & Security
 
 ### Data Protection
-- **Local Processing:** Content analysis metadata stored locally
-- **Encrypted Storage:** AI metadata encrypted with existing system
-- **User Control:** Clear opt-in/opt-out for all AI features
-- **Data Retention:** AI suggestions expire after 30 days
+- **Local Actions:** All tool executions use local system APIs
+- **Research Privacy:** Only content (not personal data) sent to Claude API
+- **User Control:** Easy opt-out for any tool or research feature
 
 ### API Security
 - **Key Management:** Claude API key stored in Keychain
-- **Rate Limiting:** Prevent abuse and cost overruns
-- **Error Handling:** Graceful degradation when AI unavailable
-- **Audit Trail:** Log AI interactions for debugging and cost tracking
+- **Rate Limiting:** Prevent API abuse and cost overruns
+- **Error Handling:** Graceful degradation when API unavailable
 
 ---
 
-This unified guide provides a complete, cohesive implementation strategy that combines the best ideas from all three documents while removing outdated or conflicting designs. The progressive enhancement approach ensures rapid user value while building towards a sophisticated AI assistant.
+This simplified guide focuses on **autonomous action execution** and **intelligent research** rather than complex classification systems. The trigger-based approach eliminates AI classification costs while providing immediate, reliable value through tool integration and helpful research summaries.

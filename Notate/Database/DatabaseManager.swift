@@ -828,6 +828,130 @@ final class DatabaseManager: ObservableObject {
 
         return newKey
     }
+
+    // MARK: - AI Metadata Operations
+
+    func getEntriesNeedingAIProcessing() -> [Entry] {
+        return performOnQueue {
+            return self.entries.filter { entry in
+                entry.needsAIProcessing
+            }
+        }
+    }
+
+    func getEntriesWithAIActions() -> [Entry] {
+        return performOnQueue {
+            return self.entries.filter { entry in
+                entry.hasAIActions
+            }
+        }
+    }
+
+    func getEntriesWithAIResearch() -> [Entry] {
+        return performOnQueue {
+            return self.entries.filter { entry in
+                entry.hasAIResearch
+            }
+        }
+    }
+
+    func updateEntryAIMetadata(_ entryId: String, metadata: AIMetadata) {
+        performOnQueue {
+            guard let index = self.entries.firstIndex(where: { $0.id == entryId }) else {
+                print("⚠️ Entry not found for AI metadata update: \(entryId)")
+                return
+            }
+
+            var updatedEntry = self.entries[index]
+            updatedEntry.setAIMetadata(metadata)
+
+            // Update in database
+            self.saveEntryInternal(updatedEntry)
+        }
+    }
+
+    func addAIActionToEntry(_ entryId: String, action: AIAction) {
+        performOnQueue {
+            guard let index = self.entries.firstIndex(where: { $0.id == entryId }) else {
+                print("⚠️ Entry not found for AI action addition: \(entryId)")
+                return
+            }
+
+            var updatedEntry = self.entries[index]
+            updatedEntry.addAIAction(action)
+
+            // Update in database
+            self.saveEntryInternal(updatedEntry)
+        }
+    }
+
+    func updateAIActionStatus(_ entryId: String, actionId: String, status: ActionStatus) {
+        performOnQueue {
+            guard let index = self.entries.firstIndex(where: { $0.id == entryId }) else {
+                print("⚠️ Entry not found for AI action update: \(entryId)")
+                return
+            }
+
+            var updatedEntry = self.entries[index]
+            updatedEntry.updateAIAction(actionId, status: status)
+
+            // Update in database
+            self.saveEntryInternal(updatedEntry)
+        }
+    }
+
+    func setAIResearchForEntry(_ entryId: String, research: ResearchResults) {
+        performOnQueue {
+            guard let index = self.entries.firstIndex(where: { $0.id == entryId }) else {
+                print("⚠️ Entry not found for AI research update: \(entryId)")
+                return
+            }
+
+            var updatedEntry = self.entries[index]
+            updatedEntry.setAIResearch(research)
+
+            // Update in database
+            self.saveEntryInternal(updatedEntry)
+        }
+    }
+
+    // MARK: - AI Analytics
+
+    func getAIUsageStats() -> AIUsageStats {
+        return performOnQueue {
+            let entriesWithAI = self.entries.filter { $0.hasAIProcessing }
+            let totalActionsExecuted = entriesWithAI.reduce(0) { count, entry in
+                count + (entry.aiMetadata?.executedActions.count ?? 0)
+            }
+            let totalResearchGenerated = entriesWithAI.filter { $0.hasAIResearch }.count
+            let totalCost = entriesWithAI.reduce(0.0) { cost, entry in
+                cost + (entry.aiMetadata?.totalCost ?? 0.0)
+            }
+
+            return AIUsageStats(
+                totalEntriesProcessed: entriesWithAI.count,
+                totalActionsExecuted: totalActionsExecuted,
+                totalResearchGenerated: totalResearchGenerated,
+                totalCost: totalCost,
+                lastUpdated: Date()
+            )
+        }
+    }
+
+    // Add AI indexes for better performance (call during database initialization)
+    private func createAIIndexes() {
+        let indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_ai_processed ON entries(json_extract(metadata, '$.ai') IS NOT NULL);",
+            "CREATE INDEX IF NOT EXISTS idx_ai_actions ON entries(json_extract(metadata, '$.ai.actions') IS NOT NULL);",
+            "CREATE INDEX IF NOT EXISTS idx_ai_research ON entries(json_extract(metadata, '$.ai.researchResults') IS NOT NULL);"
+        ]
+
+        for indexSQL in indexes {
+            if sqlite3_exec(db, indexSQL, nil, nil, nil) != SQLITE_OK {
+                print("❌ Error creating AI index: \(indexSQL)")
+            }
+        }
+    }
 }
 
 // MARK: - Keychain Error Types
@@ -848,6 +972,24 @@ enum KeychainError: Error, LocalizedError {
         case .unhandledError(let status):
             return "Keychain operation failed with status: \(status)"
         }
+    }
+}
+
+// MARK: - AI Usage Statistics
+struct AIUsageStats {
+    let totalEntriesProcessed: Int
+    let totalActionsExecuted: Int
+    let totalResearchGenerated: Int
+    let totalCost: Double
+    let lastUpdated: Date
+
+    var formattedCost: String {
+        return String(format: "$%.4f", totalCost)
+    }
+
+    var averageCostPerEntry: Double {
+        guard totalEntriesProcessed > 0 else { return 0.0 }
+        return totalCost / Double(totalEntriesProcessed)
     }
 }
 

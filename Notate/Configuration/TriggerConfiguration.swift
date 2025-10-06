@@ -27,8 +27,8 @@ struct AppConfiguration: Codable {
     static let `default` = AppConfiguration(
         triggers: [
             TriggerConfig(trigger: "///", defaultType: .todo),
-            TriggerConfig(trigger: ",,,", defaultType: .thought),
-            TriggerConfig(trigger: "，，，", defaultType: .thought),
+            TriggerConfig(trigger: ",,,", defaultType: .piece),
+            TriggerConfig(trigger: "，，，", defaultType: .piece),
             TriggerConfig(trigger: ";;", defaultType: .todo)
         ],
         autoClearInput: true,
@@ -121,16 +121,16 @@ final class ConfigurationManager: ObservableObject {
         if trimmedContent.hasPrefix("todo:") || trimmedContent.hasPrefix("t:") {
             return .todo
         }
-        if trimmedContent.hasPrefix("idea:") || trimmedContent.hasPrefix("i:") {
-            return .thought
+        if trimmedContent.hasPrefix("idea:") || trimmedContent.hasPrefix("i:") || trimmedContent.hasPrefix("piece:") || trimmedContent.hasPrefix("p:") {
+            return .piece
         }
         
         // Chinese overrides
         if trimmedContent.hasPrefix("待办:") || trimmedContent.hasPrefix("任务:") {
             return .todo
         }
-        if trimmedContent.hasPrefix("想法:") || trimmedContent.hasPrefix("思考:") {
-            return .thought
+        if trimmedContent.hasPrefix("想法:") || trimmedContent.hasPrefix("思考:") || trimmedContent.hasPrefix("片段:") {
+            return .piece
         }
         
         // Fall back to trigger mapping
@@ -146,7 +146,7 @@ final class ConfigurationManager: ObservableObject {
         var cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Remove inline type prefixes
-        let prefixes = ["todo:", "t:", "idea:", "i:", "待办:", "任务:", "想法:", "思考:"]
+        let prefixes = ["todo:", "t:", "idea:", "i:", "piece:", "p:", "待办:", "任务:", "想法:", "思考:", "片段:"]
         for prefix in prefixes {
             if cleaned.hasPrefix(prefix) {
                 cleaned = String(cleaned.dropFirst(prefix.count))
@@ -195,12 +195,12 @@ final class ConfigurationManager: ObservableObject {
 // MARK: - Inline Type Detection Extensions
 extension String {
     var hasInlineTypePrefix: Bool {
-        let prefixes = ["todo:", "t:", "idea:", "i:", "待办:", "任务:", "想法:", "思考:"]
+        let prefixes = ["todo:", "t:", "idea:", "i:", "piece:", "p:", "待办:", "任务:", "想法:", "思考:", "片段:"]
         return prefixes.contains { self.hasPrefix($0) }
     }
-    
+
     var inlineTypePrefix: String? {
-        let prefixes = ["todo:", "t:", "idea:", "i:", "待办:", "任务:", "想法:", "思考:"]
+        let prefixes = ["todo:", "t:", "idea:", "i:", "piece:", "p:", "待办:", "任务:", "想法:", "思考:", "片段:"]
         return prefixes.first { self.hasPrefix($0) }
     }
     
