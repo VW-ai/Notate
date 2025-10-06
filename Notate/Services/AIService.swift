@@ -104,7 +104,21 @@ class AIService: ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Configure URLSession with longer timeout for better reliability
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
+        let session = URLSession(configuration: config)
+
+        let (data, response): (Data, URLResponse)
+        do {
+            print("🌐 Making API request to: \(url.absoluteString)")
+            (data, response) = try await session.data(for: request)
+            print("📡 API request completed successfully")
+        } catch {
+            print("❌ Network error occurred: \(error)")
+            throw AIServiceError.networkError(error)
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AIServiceError.invalidResponse
@@ -120,6 +134,16 @@ class AIService: ObservableObject {
         let text = content[0]["text"] as! String
 
         return text
+    }
+
+    // MARK: - Quick Methods for Content Extraction
+
+    func quickExtraction(_ prompt: String) async throws -> String {
+        return try await makeAPICall(prompt: prompt, maxTokens: 200) // Smaller response for extraction
+    }
+
+    func quickClassification(_ prompt: String) async throws -> String {
+        return try await makeAPICall(prompt: prompt, maxTokens: 100) // Even smaller for classification
     }
 
     // MARK: - API Key Storage
@@ -142,6 +166,7 @@ enum AIServiceError: LocalizedError {
     case noAPIKey
     case invalidURL
     case invalidResponse
+    case networkError(Error)
     case apiError(Int, String)
 
     var errorDescription: String? {
@@ -152,6 +177,20 @@ enum AIServiceError: LocalizedError {
             return "Invalid API URL"
         case .invalidResponse:
             return "Invalid response from API"
+        case .networkError(let error):
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .cannotFindHost:
+                    return "Cannot reach Anthropic servers. Check your internet connection."
+                case .timedOut:
+                    return "Request timed out. Please try again."
+                case .notConnectedToInternet:
+                    return "No internet connection available."
+                default:
+                    return "Network error: \(urlError.localizedDescription)"
+                }
+            }
+            return "Network error: \(error.localizedDescription)"
         case .apiError(let statusCode, let message):
             return "API Error (\(statusCode)): \(message)"
         }

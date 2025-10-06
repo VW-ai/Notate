@@ -7,6 +7,11 @@ final class AppState: ObservableObject {
     let engine = CaptureEngine()
     let databaseManager = DatabaseManager.shared
     let configManager = ConfigurationManager.shared
+
+    // AI Components
+    let aiService = AIService()
+    lazy var contentExtractor = AIContentExtractor(aiService: aiService)
+    lazy var autonomousAIAgent = AutonomousAIAgent(aiService: aiService, databaseManager: databaseManager)
     
     @Published var lastCapturedPreview: String = ""
     @Published var lastCaptureResult: CaptureResult?
@@ -62,6 +67,15 @@ final class AppState: ObservableObject {
                 self?.lastCapturedPreview = result.content
             }
             .store(in: &cancellables)
+
+        // Listen for entry creation to trigger AI processing
+        NotificationCenter.default.publisher(for: Notification.Name("Notate.entryCreated"))
+            .compactMap { $0.object as? Entry }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] entry in
+                self?.handleNewEntry(entry)
+            }
+            .store(in: &cancellables)
     }
     
     func loadEntries() {
@@ -71,7 +85,20 @@ final class AppState: ObservableObject {
     func forceRefreshEntries() {
         databaseManager.forceRefreshEntries()
     }
-    
+
+    // MARK: - AI Processing Integration
+
+    private func handleNewEntry(_ entry: Entry) {
+        // Trigger AI processing if enabled
+        if aiService.isConfigured && UserDefaults.standard.bool(forKey: "aiProcessingEnabled") {
+            print("🤖 Starting AI processing for: \(entry.content.prefix(50))...")
+            processEntryWithAI(entry)
+        } else {
+            print("⚠️ AI processing disabled or not configured")
+        }
+    }
+
+
     func filteredEntries() -> [Entry] {
         var filtered = entries
 
@@ -200,5 +227,39 @@ final class AppState: ObservableObject {
 
     func getArchiveCount() -> Int {
         return getArchivedEntries().count
+    }
+
+    // MARK: - AI Processing
+
+    func processEntryWithAI(_ entry: Entry) {
+        Task {
+            await autonomousAIAgent.processEntry(entry)
+        }
+    }
+
+    func processAllUnprocessedEntries() {
+        Task {
+            await autonomousAIAgent.processAllUnprocessedEntries()
+        }
+    }
+
+    func regenerateAIResearch(for entry: Entry) {
+        Task {
+            await autonomousAIAgent.regenerateResearch(for: entry)
+        }
+    }
+
+    func reverseAIAction(_ actionId: String, for entry: Entry) {
+        Task {
+            await autonomousAIAgent.reverseAction(actionId, for: entry.id)
+        }
+    }
+
+    var aiProcessingStats: ProcessingStats {
+        return autonomousAIAgent.processingStats
+    }
+
+    var unprocessedAICount: Int {
+        return autonomousAIAgent.getUnprocessedCount()
     }
 }

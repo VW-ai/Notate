@@ -5,7 +5,8 @@ import Combine
 class AutonomousAIAgent: ObservableObject {
     private let aiService: AIService
     private let databaseManager: DatabaseManager
-    private var toolService: ToolService?
+    private let toolService: ToolService
+    private let contentExtractor: AIContentExtractor
 
     @Published var isProcessing: Bool = false
     @Published var processingQueue: [String] = [] // Entry IDs being processed
@@ -16,12 +17,11 @@ class AutonomousAIAgent: ObservableObject {
     init(aiService: AIService, databaseManager: DatabaseManager) {
         self.aiService = aiService
         self.databaseManager = databaseManager
+        self.toolService = ToolService()
+        self.contentExtractor = AIContentExtractor(aiService: aiService)
 
         // Initialize processing stats
         updateProcessingStats()
-
-        // TODO: Initialize ToolService once implemented
-        // self.toolService = ToolService()
     }
 
     // MARK: - Main Entry Processing
@@ -86,14 +86,19 @@ class AutonomousAIAgent: ObservableObject {
         let processingStartTime = Date()
         let userContext = buildUserContext()
 
-        // 1. Always add to Apple Reminders
-        if let reminderAction = await createReminderAction(from: entry.content) {
-            actions.append(reminderAction)
+        // 1. Extract all information from content using AI
+        let extractedInfo = await contentExtractor.extractAllInformation(entry.content)
+
+        // 2. Create reminder action for TODOs
+        if contentExtractor.shouldCreateReminder(extractedInfo, entryType: .todo) {
+            if let reminderAction = await createReminderAction(from: entry.content, extractedInfo: extractedInfo) {
+                actions.append(reminderAction)
+            }
         }
 
-        // 2. Check for time components and add to Calendar
-        if PatternMatcher.containsDateOrTime(entry.content) {
-            if let calendarAction = await createCalendarAction(from: entry.content) {
+        // 3. Create calendar action if it has time information
+        if contentExtractor.shouldCreateCalendarEvent(extractedInfo) {
+            if let calendarAction = await createCalendarAction(from: entry.content, extractedInfo: extractedInfo) {
                 actions.append(calendarAction)
             }
         }
@@ -126,41 +131,26 @@ class AutonomousAIAgent: ObservableObject {
         let processingStartTime = Date()
         let userContext = buildUserContext()
 
-        // 1. Detect and handle structured data
-        let structuredData = PatternMatcher.extractStructuredData(entry.content)
+        // 1. Extract all information from content using AI
+        let extractedInfo = await contentExtractor.extractAllInformation(entry.content)
 
-        // Phone numbers -> Contacts
-        if let phoneNumber = structuredData.phoneNumber {
-            if let contactAction = await createContactAction(
-                from: entry.content,
-                phoneNumber: phoneNumber,
-                name: structuredData.personName
-            ) {
+        // 2. Create contact action if we have contact info
+        if contentExtractor.shouldCreateContact(extractedInfo) {
+            if let contactAction = await createContactAction(from: entry.content, extractedInfo: extractedInfo) {
                 actions.append(contactAction)
             }
         }
 
-        // Emails -> Contacts
-        if let email = structuredData.email {
-            if let contactAction = await createContactAction(
-                from: entry.content,
-                email: email,
-                name: structuredData.personName
-            ) {
-                actions.append(contactAction)
-            }
-        }
-
-        // Locations -> Maps
-        if PatternMatcher.isLocation(entry.content) {
-            if let mapAction = await createMapAction(from: entry.content) {
+        // 3. Open maps if we have location info
+        if contentExtractor.shouldOpenMaps(extractedInfo) {
+            if let mapAction = await createMapAction(from: entry.content, extractedInfo: extractedInfo) {
                 actions.append(mapAction)
             }
         }
 
-        // 2. Generate research if it's not just raw data
+        // 4. Generate research if it's not just raw data
         var research: ResearchResults?
-        if !PatternMatcher.isRawData(entry.content) {
+        if contentExtractor.shouldGenerateResearch(extractedInfo, text: entry.content) {
             do {
                 research = try await aiService.generatePieceResearch(entry.content, userContext: userContext)
                 print("✅ Generated PIECE research: \(research?.content.prefix(100) ?? "nil")...")
@@ -183,17 +173,25 @@ class AutonomousAIAgent: ObservableObject {
 
     // MARK: - Action Creation (Placeholders until ToolService is implemented)
 
-    private func createReminderAction(from content: String) async -> AIAction? {
-        // TODO: Implement with ToolService
-        // For now, create a placeholder action that will be executed later
+    private func createReminderAction(from content: String, extractedInfo: ExtractedInformation) async -> AIAction? {
+        let title = extractedInfo.actionIntent != nil ?
+            "\(extractedInfo.actionIntent!) - \(content)" : content
+
+        var actionData: [String: ActionData] = [
+            "title": ActionData(title),
+            "notes": ActionData("Created by Notate AI"),
+            "original_content": ActionData(content)
+        ]
+
+        // Add time info if available
+        if let timeInfo = extractedInfo.timeInfo {
+            actionData["due_date"] = ActionData(timeInfo)
+        }
+
         return AIAction(
             type: .appleReminders,
             status: .pending,
-            data: [
-                "title": ActionData(content),
-                "notes": ActionData("Created by Notate AI"),
-                "original_content": ActionData(content)
-            ],
+            data: actionData,
             executedAt: nil,
             reversible: true,
             reverseData: [
@@ -202,16 +200,29 @@ class AutonomousAIAgent: ObservableObject {
         )
     }
 
-    private func createCalendarAction(from content: String) async -> AIAction? {
-        // TODO: Implement with ToolService for actual calendar integration
+    private func createCalendarAction(from content: String, extractedInfo: ExtractedInformation) async -> AIAction? {
+        let title = extractedInfo.actionIntent != nil ?
+            "\(extractedInfo.actionIntent!) - \(content)" : content
+
+        var actionData: [String: ActionData] = [
+            "title": ActionData(title),
+            "notes": ActionData("Created by Notate AI"),
+            "original_content": ActionData(content)
+        ]
+
+        // Add extracted information
+        if let timeInfo = extractedInfo.timeInfo {
+            actionData["start_time"] = ActionData(timeInfo)
+        }
+
+        if let locationInfo = extractedInfo.locationInfo {
+            actionData["location"] = ActionData(locationInfo)
+        }
+
         return AIAction(
             type: .calendar,
             status: .pending,
-            data: [
-                "title": ActionData(content),
-                "notes": ActionData("Created by Notate AI"),
-                "original_content": ActionData(content)
-            ],
+            data: actionData,
             executedAt: nil,
             reversible: true,
             reverseData: [
@@ -220,26 +231,22 @@ class AutonomousAIAgent: ObservableObject {
         )
     }
 
-    private func createContactAction(
-        from content: String,
-        phoneNumber: String? = nil,
-        email: String? = nil,
-        name: String? = nil
-    ) async -> AIAction? {
-        // TODO: Implement with ToolService for actual contact creation
-        var actionData: [String: ActionData] = [:]
+    private func createContactAction(from content: String, extractedInfo: ExtractedInformation) async -> AIAction? {
+        var actionData: [String: ActionData] = [
+            "original_content": ActionData(content),
+            "notes": ActionData("Added by Notate AI")
+        ]
 
-        if let phone = phoneNumber {
+        // Use extracted information
+        if let phone = extractedInfo.phoneNumber {
             actionData["phone"] = ActionData(phone)
         }
 
-        if let email = email {
+        if let email = extractedInfo.email {
             actionData["email"] = ActionData(email)
         }
 
-        actionData["name"] = ActionData(name ?? "Unknown Contact")
-        actionData["notes"] = ActionData("Added by Notate AI")
-        actionData["original_content"] = ActionData(content)
+        actionData["name"] = ActionData(extractedInfo.personName ?? "Unknown Contact")
 
         return AIAction(
             type: .contacts,
@@ -253,14 +260,15 @@ class AutonomousAIAgent: ObservableObject {
         )
     }
 
-    private func createMapAction(from content: String) async -> AIAction? {
-        // TODO: Implement with ToolService for actual map integration
+    private func createMapAction(from content: String, extractedInfo: ExtractedInformation) async -> AIAction? {
+        guard let locationInfo = extractedInfo.locationInfo else { return nil }
+
         return AIAction(
             type: .maps,
             status: .pending,
             data: [
-                "location": ActionData(content),
-                "notes": ActionData("Saved by Notate AI"),
+                "location": ActionData(locationInfo),
+                "notes": ActionData("Opened by Notate AI"),
                 "original_content": ActionData(content)
             ],
             executedAt: nil,
@@ -292,30 +300,81 @@ class AutonomousAIAgent: ObservableObject {
 
         databaseManager.updateEntryAIMetadata(entry.id, metadata: metadata)
 
-        // Execute actions if ToolService is available
-        if let toolService = toolService {
-            await executeActionsWithToolService(actions, for: entry.id, using: toolService)
-        } else {
-            // For now, mark actions as executed since we're in placeholder mode
-            for action in actions {
-                databaseManager.updateAIActionStatus(entry.id, actionId: action.id, status: .executed)
-            }
-        }
+        // Execute actions with ToolService
+        await executeActionsWithToolService(actions, for: entry.id, using: toolService)
     }
 
     private func executeActionsWithToolService(_ actions: [AIAction], for entryId: String, using toolService: ToolService) async {
         for action in actions {
             do {
-                // TODO: Implement action execution with ToolService
-                // let result = try await toolService.executeAction(action)
-                // databaseManager.updateAIActionStatus(entryId, actionId: action.id, status: result ? .executed : .failed)
-                print("🔧 Would execute action: \(action.type.displayName)")
-                databaseManager.updateAIActionStatus(entryId, actionId: action.id, status: .executed)
+                let success = try await executeAction(action, using: toolService)
+                databaseManager.updateAIActionStatus(entryId, actionId: action.id, status: success ? .executed : .failed)
+                print("✅ Executed action: \(action.type.displayName)")
             } catch {
                 print("❌ Failed to execute action \(action.id): \(error)")
                 databaseManager.updateAIActionStatus(entryId, actionId: action.id, status: .failed)
             }
         }
+    }
+
+    private func executeAction(_ action: AIAction, using toolService: ToolService) async throws -> Bool {
+        switch action.type {
+        case .appleReminders:
+            guard let title = action.data["title"]?.stringValue else { return false }
+            let notes = action.data["notes"]?.stringValue
+            let _ = try await toolService.createReminder(title: title, notes: notes)
+            return true
+
+        case .calendar:
+            guard let title = action.data["title"]?.stringValue else { return false }
+            let notes = action.data["notes"]?.stringValue
+            // Extract date/time from original content if possible
+            let startDate = extractDateFromContent(action.data["original_content"]?.stringValue ?? "") ?? Date()
+            let _ = try await toolService.createCalendarEvent(title: title, notes: notes, startDate: startDate)
+            return true
+
+        case .contacts:
+            guard let name = action.data["name"]?.stringValue else { return false }
+            let phoneNumber = action.data["phone"]?.stringValue
+            let email = action.data["email"]?.stringValue
+            let nameParts = name.components(separatedBy: " ")
+            let firstName = nameParts.first ?? name
+            let lastName = nameParts.count > 1 ? nameParts.dropFirst().joined(separator: " ") : nil
+            let _ = try await toolService.createContact(
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber,
+                email: email
+            )
+            return true
+
+        case .maps:
+            guard let location = action.data["location"]?.stringValue else { return false }
+            try await toolService.openInMaps(address: location)
+            return true
+
+        case .webSearch:
+            // Web search doesn't require system integration
+            return true
+        }
+    }
+
+    private func extractDateFromContent(_ content: String) -> Date? {
+        // Simple date/time extraction - could be enhanced with NLP
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Look for common time patterns
+        if content.lowercased().contains("tomorrow") {
+            return calendar.date(byAdding: .day, value: 1, to: now)
+        } else if content.lowercased().contains("next week") {
+            return calendar.date(byAdding: .weekOfYear, value: 1, to: now)
+        } else if content.lowercased().contains("today") {
+            return now
+        }
+
+        // Default to 1 hour from now if no specific time found
+        return calendar.date(byAdding: .hour, value: 1, to: now)
     }
 
     private func markProcessingFailed(_ entry: Entry, error: Error) async {
@@ -456,11 +515,3 @@ struct ProcessingStats {
     }
 }
 
-// Placeholder ToolService until we implement the real one
-struct ToolService {
-    // This will be implemented in the next step
-    func executeAction(_ action: AIAction) async throws -> Bool {
-        // Placeholder implementation
-        return true
-    }
-}

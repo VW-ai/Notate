@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Main AI Metadata Structure
 struct AIMetadata: Codable {
@@ -76,6 +77,16 @@ enum ActionStatus: String, Codable {
         case .reversed: return "Reversed"
         }
     }
+
+    var color: Color {
+        switch self {
+        case .pending: return .orange
+        case .executing: return .blue
+        case .executed: return .green
+        case .failed: return .red
+        case .reversed: return .gray
+        }
+    }
 }
 
 // MARK: - Action Data (Flexible for different action types)
@@ -101,6 +112,20 @@ struct ActionData: Codable {
 
     init(_ int: Int) {
         self.value = .int(int)
+    }
+
+    // Convenience accessors
+    var stringValue: String {
+        switch value {
+        case .string(let str):
+            return str
+        case .date(let date):
+            return date.formatted()
+        case .bool(let bool):
+            return bool ? "true" : "false"
+        case .int(let int):
+            return String(int)
+        }
     }
 }
 
@@ -145,12 +170,14 @@ enum ActionValue: Codable {
 struct ResearchResults: Codable {
     let format: ResultFormat = .markdown
     let content: String
+    let suggestions: [String]
     let generatedAt: Date
     let researchCost: Double
     let processingTimeMs: Int
 
-    init(content: String, generatedAt: Date, researchCost: Double, processingTimeMs: Int = 0) {
+    init(content: String, suggestions: [String] = [], generatedAt: Date, researchCost: Double, processingTimeMs: Int = 0) {
         self.content = content
+        self.suggestions = suggestions
         self.generatedAt = generatedAt
         self.researchCost = researchCost
         self.processingTimeMs = processingTimeMs

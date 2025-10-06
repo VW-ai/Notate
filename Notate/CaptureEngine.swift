@@ -241,7 +241,10 @@ final class CaptureEngine: ObservableObject {
         // Save to database
         databaseManager.saveEntry(entry)
         print("💾 已保存到数据库")
-        
+
+        // Trigger AI processing if enabled
+        triggerAIProcessing(for: entry)
+
         // Clear input if enabled
         if configManager.configuration.autoClearInput {
             clearCurrentInput()
@@ -261,6 +264,15 @@ final class CaptureEngine: ObservableObject {
         currentTriggerConfig = nil
         state = State.idle
         isIMEComposing = false
+    }
+
+    private func triggerAIProcessing(for entry: Entry) {
+        // Post notification for AI processing
+        NotificationCenter.default.post(
+            name: Notification.Name("Notate.entryCreated"),
+            object: entry
+        )
+        print("🤖 Triggered AI processing for entry: \(entry.content.prefix(50))...")
     }
     
     private func clearCurrentInput() {

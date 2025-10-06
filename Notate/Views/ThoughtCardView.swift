@@ -93,6 +93,11 @@ struct ModernThoughtCard: View {
                     tagsSection
                 }
 
+                // AI Suggestions section
+                if thought.hasAIProcessing {
+                    AISuggestionsInlineView(entry: thought)
+                }
+
                 // Expanded metadata
                 if isExpanded {
                     expandedMetadata

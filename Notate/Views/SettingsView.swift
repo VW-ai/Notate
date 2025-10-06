@@ -7,6 +7,8 @@ struct SettingsView: View {
     @State private var showingAddTrigger = false
     @State private var newTriggerText = ""
     @State private var newTriggerType: EntryType = EntryType.todo
+    @State private var claudeApiKey = ""
+    @State private var showingApiKeyField = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,6 +18,9 @@ struct SettingsView: View {
             // Content with proper spacing
             ScrollView {
                 LazyVStack(spacing: 32) {
+                    // AI Configuration Section
+                    aiConfigurationSection
+
                     // Trigger Configuration Section
                     triggerConfigurationSection
 
@@ -72,6 +77,101 @@ struct SettingsView: View {
     }
 
     // MARK: - Section Views
+
+    private var aiConfigurationSection: some View {
+        modernSectionCard(
+            title: "AI Configuration",
+            subtitle: "Configure Claude API for intelligent suggestions and actions",
+            icon: "brain"
+        ) {
+            VStack(spacing: 20) {
+                modernSettingRow(
+                    title: "Claude API Key",
+                    subtitle: appState.aiService.isConfigured ? "Configured ✓" : "Not configured",
+                    control: AnyView(
+                        Button(appState.aiService.isConfigured ? "Update Key" : "Add API Key") {
+                            showingApiKeyField.toggle()
+                        }
+                        .buttonStyle(.bordered)
+                    )
+                )
+
+                if showingApiKeyField {
+                    VStack(spacing: 12) {
+                        SecureField("Enter your Claude API key", text: $claudeApiKey)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                        HStack(spacing: 12) {
+                            Button("Cancel") {
+                                claudeApiKey = ""
+                                showingApiKeyField = false
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Save") {
+                                appState.aiService.setAPIKey(claudeApiKey)
+                                claudeApiKey = ""
+                                showingApiKeyField = false
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(claudeApiKey.isEmpty)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+
+                if !claudeApiKey.isEmpty || appState.aiService.isConfigured {
+                    modernSettingRow(
+                        title: "Enable AI Processing",
+                        subtitle: "Automatically process entries with AI suggestions",
+                        control: AnyView(
+                            Toggle("", isOn: Binding(
+                                get: { getAIProcessingEnabled() },
+                                set: { setAIProcessingEnabled($0) }
+                            ))
+                            .toggleStyle(SwitchToggleStyle())
+                        )
+                    )
+
+                    if getAIProcessingEnabled() {
+                        modernActionButton(title: "Test Connection", icon: "network") {
+                            testAIConnection()
+                        }
+
+                        // AI Usage Statistics
+                        if appState.aiProcessingStats.hasData {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("AI Usage")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.secondary)
+
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Processed")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.secondary)
+                                        Text("\(appState.aiProcessingStats.totalProcessed)")
+                                            .font(.system(size: 11, weight: .medium))
+                                    }
+
+                                    Spacer()
+
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("Cost")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.secondary)
+                                        Text(appState.aiProcessingStats.formattedCost)
+                                            .font(.system(size: 11, weight: .medium))
+                                    }
+                                }
+                            }
+                            .padding(.top, 8)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     private var triggerConfigurationSection: some View {
         modernSectionCard(
@@ -389,6 +489,40 @@ struct SettingsView: View {
     }
 
     // MARK: - Helper Functions
+
+    private func getAIProcessingEnabled() -> Bool {
+        return UserDefaults.standard.bool(forKey: "aiProcessingEnabled")
+    }
+
+    private func setAIProcessingEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "aiProcessingEnabled")
+    }
+
+    private func testAIConnection() {
+        Task {
+            do {
+                print("🧪 Testing AI connection...")
+                let testResult = try await appState.aiService.quickExtraction("Test: Reply with just 'OK' if this works")
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = "AI Connection Test"
+                    alert.informativeText = "✅ Success! Response: \(testResult)"
+                    alert.alertStyle = .informational
+                    alert.runModal()
+                }
+                print("✅ AI connection test successful: \(testResult)")
+            } catch {
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = "AI Connection Test"
+                    alert.informativeText = "❌ Failed: \(error.localizedDescription)"
+                    alert.alertStyle = .warning
+                    alert.runModal()
+                }
+                print("❌ AI connection test failed: \(error)")
+            }
+        }
+    }
 
     private func exportData() {
         let panel = NSSavePanel()

@@ -266,8 +266,13 @@ final class DatabaseManager: ObservableObject {
             bindText(statement, index: 8, value: entry.status.rawValue)
             bindText(statement, index: 9, value: entry.priority?.rawValue)
 
-            let metadataJSON = try? JSONEncoder().encode(entry.metadata)
-            let metadataString = metadataJSON?.base64EncodedString()
+            let metadataString: String?
+            if let metadata = entry.metadata {
+                let metadataJSON = try? JSONEncoder().encode(metadata)
+                metadataString = metadataJSON?.base64EncodedString()
+            } else {
+                metadataString = nil
+            }
             bindText(statement, index: 10, value: metadataString)
 
             let result = sqlite3_step(statement)
@@ -918,7 +923,7 @@ final class DatabaseManager: ObservableObject {
     // MARK: - AI Analytics
 
     func getAIUsageStats() -> AIUsageStats {
-        return performOnQueue {
+        return performOnQueue { () -> AIUsageStats in
             let entriesWithAI = self.entries.filter { $0.hasAIProcessing }
             let totalActionsExecuted = entriesWithAI.reduce(0) { count, entry in
                 count + (entry.aiMetadata?.executedActions.count ?? 0)

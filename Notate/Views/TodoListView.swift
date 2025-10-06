@@ -67,6 +67,11 @@ struct ModernTodoCard: View {
                     }
                 }
 
+                // AI Suggestions section
+                if todo.hasAIProcessing {
+                    AISuggestionsInlineView(entry: todo)
+                }
+
                 // Expanded metadata
                 if isExpanded {
                     expandedMetadata
