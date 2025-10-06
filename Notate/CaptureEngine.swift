@@ -5,6 +5,7 @@ import Combine
 extension Notification.Name {
     static let notateDidDetectTrigger = Notification.Name("Notate.didDetectTrigger")
     static let notateDidFinishCapture  = Notification.Name("Notate.didFinishCapture")
+    static let todoArchivedNotification = Notification.Name("Notate.todoArchived")
 }
 
 struct CaptureResult {

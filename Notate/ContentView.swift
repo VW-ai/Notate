@@ -96,11 +96,21 @@ struct ContentView: View {
     private var tabSelectionView: some View {
         Picker("Tab", selection: $appState.selectedTab) {
             ForEach(AppState.TabSelection.allCases, id: \.self) { tab in
-                Text(tab.displayName).tag(tab)
+                Text(tabDisplayName(for: tab)).tag(tab)
             }
         }
         .pickerStyle(SegmentedPickerStyle())
         .padding(.horizontal)
+    }
+
+    private func tabDisplayName(for tab: AppState.TabSelection) -> String {
+        switch tab {
+        case .archive:
+            let count = appState.getArchiveCount()
+            return count > 0 ? "Archive (\(count))" : "Archive"
+        default:
+            return tab.displayName
+        }
     }
     
     @ViewBuilder
@@ -126,6 +136,13 @@ struct ContentView: View {
                     emptyThoughtsView
                 } else {
                     ThoughtCardView(thoughts: thoughts)
+                }
+            case .archive:
+                let archivedTodos = filteredEntries.filter { $0.isTodo && $0.status == EntryStatus.done }
+                if archivedTodos.isEmpty {
+                    emptyArchiveView
+                } else {
+                    ArchiveListView(archivedTodos: archivedTodos)
                 }
             }
         }
@@ -241,7 +258,31 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
+    private var emptyArchiveView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "archivebox")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+
+            Text("No completed TODOs")
+                .font(.title2)
+                .fontWeight(.medium)
+
+            Text("Completed TODOs will automatically appear here")
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            if appState.getArchiveCount() == 0 {
+                Text("Complete a TODO to see archive in action!")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 8)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func captureToastView(result: CaptureResult) -> some View {
         VStack(spacing: 8) {
             HStack {

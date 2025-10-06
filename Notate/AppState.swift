@@ -21,7 +21,8 @@ final class AppState: ObservableObject {
         case all = "All"
         case todos = "TODOs"
         case thoughts = "Thoughts"
-        
+        case archive = "Archive"
+
         var displayName: String {
             return self.rawValue
         }
@@ -73,33 +74,46 @@ final class AppState: ObservableObject {
     
     func filteredEntries() -> [Entry] {
         var filtered = entries
-        
-        // Apply tab filter
+
+        // Apply tab filter with smart archiving logic
         switch selectedTab {
         case .todos:
-            filtered = filtered.filter { $0.isTodo }
+            // TODOs tab: Only show OPEN todos (completed ones are auto-archived)
+            filtered = filtered.filter { $0.isTodo && $0.status == EntryStatus.open }
         case .thoughts:
+            // Thoughts tab: Show all thoughts (they don't get archived)
             filtered = filtered.filter { $0.isThought }
+        case .archive:
+            // Archive tab: Show completed TODOs only
+            filtered = filtered.filter { $0.isTodo && $0.status == EntryStatus.done }
         case .all:
-            break
+            // All tab: Show active TODOs + all thoughts (exclude completed TODOs)
+            filtered = filtered.filter { entry in
+                entry.isThought || (entry.isTodo && entry.status == EntryStatus.open)
+            }
         }
-        
-        // Apply status/priority filter
-        switch selectedFilter {
-        case .open:
-            filtered = filtered.filter { $0.status == EntryStatus.open }
-        case .done:
-            filtered = filtered.filter { $0.status == EntryStatus.done }
-        case .high:
-            filtered = filtered.filter { $0.priority == EntryPriority.high }
-        case .medium:
-            filtered = filtered.filter { $0.priority == EntryPriority.medium }
-        case .low:
-            filtered = filtered.filter { $0.priority == EntryPriority.low }
-        case .none:
-            break
+
+        // Apply additional priority filter (only relevant for open items)
+        if selectedTab != .archive {
+            switch selectedFilter {
+            case .open:
+                // Redundant for todos tab, but useful for "all" tab
+                filtered = filtered.filter { $0.status == EntryStatus.open }
+            case .done:
+                // This filter is now only meaningful in archive context
+                // For non-archive tabs, this does nothing since done items are already filtered out
+                break
+            case .high:
+                filtered = filtered.filter { $0.priority == EntryPriority.high }
+            case .medium:
+                filtered = filtered.filter { $0.priority == EntryPriority.medium }
+            case .low:
+                filtered = filtered.filter { $0.priority == EntryPriority.low }
+            case .none:
+                break
+            }
         }
-        
+
         // Apply search filter
         if !searchQuery.isEmpty {
             filtered = filtered.filter { entry in
@@ -107,7 +121,7 @@ final class AppState: ObservableObject {
                 entry.tags.contains { $0.localizedCaseInsensitiveContains(searchQuery) }
             }
         }
-        
+
         return filtered
     }
     
@@ -135,11 +149,56 @@ final class AppState: ObservableObject {
         var updatedEntry = entry
         updatedEntry.markAsDone()
         databaseManager.updateEntry(updatedEntry)
+
+        // Show success feedback
+        print("✅ TODO completed and archived: \(entry.content)")
+
+        // Post notification for UI feedback (could trigger toast/animation)
+        NotificationCenter.default.post(
+            name: Notification.Name("Notate.todoArchived"),
+            object: updatedEntry
+        )
     }
     
     func markTodoAsOpen(_ entry: Entry) {
         var updatedEntry = entry
         updatedEntry.markAsOpen()
         databaseManager.updateEntry(updatedEntry)
+    }
+
+    // MARK: - Archive Management
+
+    func getArchivedEntries() -> [Entry] {
+        return entries.filter { $0.isTodo && $0.status == EntryStatus.done }
+    }
+
+    func restoreFromArchive(_ entry: Entry) {
+        guard entry.isTodo && entry.status == EntryStatus.done else { return }
+        var restoredEntry = entry
+        restoredEntry.markAsOpen()
+        databaseManager.updateEntry(restoredEntry)
+
+        // Show success feedback
+        print("✅ Restored TODO from archive: \(entry.content)")
+    }
+
+    func permanentlyDeleteFromArchive(_ entry: Entry) {
+        guard entry.isTodo && entry.status == EntryStatus.done else { return }
+        databaseManager.deleteEntry(id: entry.id)
+
+        print("🗑️ Permanently deleted archived TODO: \(entry.content)")
+    }
+
+    func clearArchive() {
+        let archivedEntries = getArchivedEntries()
+        for entry in archivedEntries {
+            databaseManager.deleteEntry(id: entry.id)
+        }
+
+        print("🧹 Cleared archive: \(archivedEntries.count) items deleted")
+    }
+
+    func getArchiveCount() -> Int {
+        return getArchivedEntries().count
     }
 }
