@@ -18,6 +18,12 @@ struct NotateApp: App {
                     }
                     .onDisappear {
                         stopPermissionMonitoring()
+                        appState.engine.stop()
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                        // Fixed: Ensure timer cleanup on app termination
+                        stopPermissionMonitoring()
+                        appState.engine.stop()
                     }
             } else {
                 PermissionRequestView(hasPermission: $hasAccessibilityPermission)
@@ -28,10 +34,15 @@ struct NotateApp: App {
                     .onDisappear {
                         stopPermissionMonitoring()
                     }
+                    .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                        // Fixed: Ensure timer cleanup on app termination
+                        stopPermissionMonitoring()
+                        appState.engine.stop()
+                    }
             }
         }
     }
-    
+
     private func checkAccessibilityPermission() {
         // 使用更可靠的权限检测方法
         let trusted = checkAccessibilityPermissionReliable()
@@ -92,19 +103,25 @@ struct NotateApp: App {
     }
     
     private func startPermissionMonitoring() {
+        // Fixed: Prevent multiple timers and ensure proper cleanup
+        stopPermissionMonitoring() // Stop any existing timer first
+
         // 每5秒检查一次权限状态
         permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
             let trusted = checkAccessibilityPermissionReliable()
             if trusted != hasAccessibilityPermission {
                 print("🔄 权限状态发生变化: \(hasAccessibilityPermission) -> \(trusted)")
-                hasAccessibilityPermission = trusted
-                
-                if trusted {
-                    // 权限已授予，启动捕获引擎
-                    appState.engine.start()
-                } else {
-                    // 权限被撤销，停止捕获引擎
-                    appState.engine.stop()
+
+                DispatchQueue.main.async {
+                    hasAccessibilityPermission = trusted
+
+                    if trusted {
+                        // 权限已授予，启动捕获引擎
+                        appState.engine.start()
+                    } else {
+                        // 权限被撤销，停止捕获引擎
+                        appState.engine.stop()
+                    }
                 }
             }
         }

@@ -3,121 +3,165 @@ import SwiftUI
 struct ThoughtCardView: View {
     let thoughts: [Entry]
     @EnvironmentObject var appState: AppState
-    
+
     private let columns = [
-        GridItem(.adaptive(minimum: 300), spacing: 16)
+        GridItem(.adaptive(minimum: 320), spacing: ModernDesignSystem.Spacing.regular)
     ]
-    
+
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
+            LazyVGrid(columns: columns, spacing: ModernDesignSystem.Spacing.regular) {
                 ForEach(thoughts) { thought in
-                    ThoughtCard(thought: thought)
+                    ModernThoughtCard(thought: thought)
+                        .environmentObject(appState)
                 }
             }
-            .padding()
+            .padding(.horizontal, ModernDesignSystem.Spacing.regular)
+            .padding(.vertical, ModernDesignSystem.Spacing.small)
         }
+        .background(ModernDesignSystem.Colors.surfaceBackground)
     }
 }
 
-struct ThoughtCard: View {
+struct ModernThoughtCard: View {
     let thought: Entry
     @EnvironmentObject var appState: AppState
-    @State private var isExpanded = false
-    @State private var isPinned = false
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("💭")
-                        .font(.title2)
-                    
-                    Text(thought.formattedDate)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Pin button
-                Button(action: { isPinned.toggle() }) {
-                    Image(systemName: isPinned ? "pin.fill" : "pin")
-                        .foregroundColor(isPinned ? .orange : .secondary)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            
-            // Content
-            Text(thought.content)
-                .font(.body)
-                .lineLimit(isExpanded ? nil : 4)
-                .multilineTextAlignment(.leading)
-            
-            // Tags
-            if !thought.tags.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 4) {
-                    ForEach(thought.tags, id: \.self) { tag in
-                        TagBadge(tag: tag)
+        ModernCard(
+            padding: ModernDesignSystem.Spacing.regular,
+            cornerRadius: ModernDesignSystem.CornerRadius.medium,
+            shadowIntensity: ModernDesignSystem.Shadow.light
+        ) {
+            VStack(spacing: ModernDesignSystem.Spacing.medium) {
+                // Header row
+                HStack(spacing: ModernDesignSystem.Spacing.medium) {
+                    // Icon and type
+                    VStack(spacing: ModernDesignSystem.Spacing.tiny) {
+                        Text("💭")
+                            .font(.system(size: 24))
+
+                        Text("THOUGHT")
+                            .font(ModernDesignSystem.Typography.tiny)
+                            .foregroundColor(ModernDesignSystem.Colors.secondary)
+                            .fontWeight(.medium)
                     }
-                }
-            }
-            
-            // Metadata
-            HStack {
-                Text("Trigger: \(thought.triggerUsed)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                if let sourceApp = thought.sourceApp {
-                    Text("• \(sourceApp)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Expand button
-                Button(action: { isExpanded.toggle() }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            
-            // Expanded content
-            if isExpanded {
-                Divider()
-                
-                // Actions
-                HStack {
-                    Button("Convert to TODO") {
-                        appState.convertThoughtToTodo(thought)
+
+                    // Content preview
+                    VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.tiny) {
+                        Text(thought.content)
+                            .font(ModernDesignSystem.Typography.body)
+                            .foregroundColor(ModernDesignSystem.Colors.primary)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+
+                        // Quick metadata
+                        quickMetadataRow
                     }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    
+
                     Spacer()
-                    
-                    Button("Delete", role: .destructive) {
-                        appState.deleteEntry(thought)
+
+                }
+
+                // Tags section
+                if !thought.tags.isEmpty {
+                    tagsSection
+                }
+
+                // Selection indicator
+                if appState.selectedEntry?.id == thought.id {
+                    HStack {
+                        Rectangle()
+                            .fill(ModernDesignSystem.Colors.accent)
+                            .frame(height: 2)
+                        Spacer()
                     }
-                    .font(.caption)
                 }
             }
         }
-        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor))
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+            RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.medium)
+                .stroke(ModernDesignSystem.Colors.accent, lineWidth: isSelected ? 2 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.medium)
+                        .fill(isSelected ? ModernDesignSystem.Colors.accent.opacity(0.05) : Color.clear)
+                )
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isPinned ? Color.orange : Color.clear, lineWidth: 2)
-        )
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.selectedEntry = thought
+            }
+        }
+    }
+
+    private var quickMetadataRow: some View {
+        HStack(spacing: ModernDesignSystem.Spacing.small) {
+            Text(thought.formattedDate)
+                .font(ModernDesignSystem.Typography.tiny)
+                .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+            Spacer()
+
+            if !thought.tags.isEmpty {
+                Text("•")
+                    .font(ModernDesignSystem.Typography.tiny)
+                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+                Text("\(thought.tags.count) tag\(thought.tags.count == 1 ? "" : "s")")
+                    .font(ModernDesignSystem.Typography.tiny)
+                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+            }
+        }
+    }
+
+    private var tagsSection: some View {
+        VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
+            HStack {
+                Image(systemName: "tag")
+                    .font(.system(size: 12))
+                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+                Text("Tags")
+                    .font(ModernDesignSystem.Typography.small)
+                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+                    .fontWeight(.medium)
+
+                Spacer()
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: ModernDesignSystem.Spacing.tiny) {
+                ForEach(thought.tags, id: \.self) { tag in
+                    ModernTagBadge(tag: tag)
+                }
+            }
+        }
+        .padding(.top, ModernDesignSystem.Spacing.small)
+    }
+
+    private var isSelected: Bool {
+        appState.selectedEntry?.id == thought.id
+    }
+}
+
+// MARK: - Modern Tag Badge Component
+struct ModernTagBadge: View {
+    let tag: String
+
+    var body: some View {
+        Text(tag)
+            .font(ModernDesignSystem.Typography.tiny)
+            .fontWeight(.medium)
+            .foregroundColor(ModernDesignSystem.Colors.accent)
+            .padding(.horizontal, ModernDesignSystem.Spacing.small)
+            .padding(.vertical, ModernDesignSystem.Spacing.tiny)
+            .background(
+                RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                    .fill(ModernDesignSystem.Colors.accent.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                    .stroke(ModernDesignSystem.Colors.accent.opacity(0.2), lineWidth: 1)
+            )
     }
 }
 
@@ -125,78 +169,65 @@ struct ThoughtCard: View {
 struct ThoughtRowView: View {
     let thought: Entry
     @EnvironmentObject var appState: AppState
-    @State private var isExpanded = false
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("💭")
-                    .font(.title3)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(thought.content)
-                        .lineLimit(isExpanded ? nil : 2)
-                    
-                    HStack {
-                        if !thought.tags.isEmpty {
-                            ForEach(thought.tags.prefix(2), id: \.self) { tag in
-                                TagBadge(tag: tag)
+        ModernCard(
+            padding: ModernDesignSystem.Spacing.medium,
+            cornerRadius: ModernDesignSystem.CornerRadius.small,
+            shadowIntensity: ModernDesignSystem.Shadow.minimal
+        ) {
+            VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
+                HStack(spacing: ModernDesignSystem.Spacing.medium) {
+                    Text("💭")
+                        .font(.system(size: 20))
+
+                    VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.tiny) {
+                        Text(thought.content)
+                            .font(ModernDesignSystem.Typography.body)
+                            .foregroundColor(ModernDesignSystem.Colors.primary)
+                            .lineLimit(2)
+
+                        HStack {
+                            if !thought.tags.isEmpty {
+                                ForEach(thought.tags.prefix(2), id: \.self) { tag in
+                                    ModernTagBadge(tag: tag)
+                                }
+
+                                if thought.tags.count > 2 {
+                                    Text("+\(thought.tags.count - 2)")
+                                        .font(ModernDesignSystem.Typography.tiny)
+                                        .foregroundColor(ModernDesignSystem.Colors.secondary)
+                                }
                             }
-                            
-                            if thought.tags.count > 2 {
-                                Text("+\(thought.tags.count - 2)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+
+                            Spacer()
+
+                            Text(thought.formattedDate)
+                                .font(ModernDesignSystem.Typography.tiny)
+                                .foregroundColor(ModernDesignSystem.Colors.secondary)
                         }
-                        
-                        Spacer()
-                        
-                        Text(thought.formattedDate)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
-                }
-                
-                Spacer()
-                
-                Button(action: { isExpanded.toggle() }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            
-            if isExpanded {
-                Divider()
-                
-                HStack {
-                    Text("Trigger: \(thought.triggerUsed)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    if let sourceApp = thought.sourceApp {
-                        Text("• \(sourceApp)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
+
                     Spacer()
-                    
-                    Button("Convert to TODO") {
-                        appState.convertThoughtToTodo(thought)
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    
-                    Button("Delete", role: .destructive) {
-                        appState.deleteEntry(thought)
-                    }
-                    .font(.caption)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                .stroke(ModernDesignSystem.Colors.accent, lineWidth: isSelected ? 2 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                        .fill(isSelected ? ModernDesignSystem.Colors.accent.opacity(0.05) : Color.clear)
+                )
+        )
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.selectedEntry = thought
+            }
+        }
+    }
+
+    private var isSelected: Bool {
+        appState.selectedEntry?.id == thought.id
     }
 }

@@ -5,6 +5,7 @@ import Combine
 extension Notification.Name {
     static let notateDidDetectTrigger = Notification.Name("Notate.didDetectTrigger")
     static let notateDidFinishCapture  = Notification.Name("Notate.didFinishCapture")
+    static let todoArchivedNotification = Notification.Name("Notate.todoArchived")
 }
 
 struct CaptureResult {
@@ -240,7 +241,10 @@ final class CaptureEngine: ObservableObject {
         // Save to database
         databaseManager.saveEntry(entry)
         print("💾 已保存到数据库")
-        
+
+        // Trigger AI processing if enabled
+        triggerAIProcessing(for: entry)
+
         // Clear input if enabled
         if configManager.configuration.autoClearInput {
             clearCurrentInput()
@@ -261,21 +265,45 @@ final class CaptureEngine: ObservableObject {
         state = State.idle
         isIMEComposing = false
     }
+
+    private func triggerAIProcessing(for entry: Entry) {
+        // Post notification for AI processing
+        NotificationCenter.default.post(
+            name: Notification.Name("Notate.entryCreated"),
+            object: entry
+        )
+        print("🤖 Triggered AI processing for entry: \(entry.content.prefix(50))...")
+    }
     
     private func clearCurrentInput() {
-        // This is a simplified implementation
-        // In a real app, you'd need to send key events to clear the current input field
-        // For now, we'll just simulate it with a series of backspace events
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            // Send backspace events to clear the input
-            // This is a basic implementation - you might want to make it more sophisticated
-            for _ in 0..<self.captureText.count {
-                let backspaceEvent = CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: true)
-                backspaceEvent?.post(tap: .cghidEventTap)
-                
-                let backspaceUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: false)
-                backspaceUpEvent?.post(tap: .cghidEventTap)
+        // Clear the input field by sending backspace events
+        // Fixed: Proper memory management for CGEvent objects and weak self capture
+
+        guard !captureText.isEmpty else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self = self else { return }
+
+            let characterCount = self.captureText.count + self.currentTrigger.count
+
+            // Create event source once and reuse for better performance
+            let eventSource = CGEventSource(stateID: .hidSystemState)
+
+            for _ in 0..<characterCount {
+                // Create backspace down event with proper memory management
+                if let backspaceDownEvent = CGEvent(keyboardEventSource: eventSource, virtualKey: 51, keyDown: true) {
+                    backspaceDownEvent.post(tap: .cghidEventTap)
+                    // CGEvent is automatically managed by ARC in Swift
+                }
+
+                // Create backspace up event with proper memory management
+                if let backspaceUpEvent = CGEvent(keyboardEventSource: eventSource, virtualKey: 51, keyDown: false) {
+                    backspaceUpEvent.post(tap: .cghidEventTap)
+                    // CGEvent is automatically managed by ARC in Swift
+                }
+
+                // Small delay between key events for better reliability
+                usleep(1000) // 1ms delay
             }
         }
     }

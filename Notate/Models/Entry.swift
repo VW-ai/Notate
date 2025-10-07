@@ -4,12 +4,14 @@ import SQLite3
 // MARK: - Entry Types
 enum EntryType: String, CaseIterable, Codable {
     case todo = "todo"
-    case thought = "thought"
-    
+    case thought = "thought" // Legacy, will be migrated to piece
+    case piece = "piece"
+
     var displayName: String {
         switch self {
         case .todo: return "TODO"
-        case .thought: return "Thought"
+        case .thought: return "Piece" // Display as Piece
+        case .piece: return "Piece"
         }
     }
 }
@@ -130,7 +132,8 @@ struct FlexibleCodable: Codable {
 // MARK: - Entry Extensions
 extension Entry {
     var isTodo: Bool { type == EntryType.todo }
-    var isThought: Bool { type == EntryType.thought }
+    var isThought: Bool { type == EntryType.thought } // Legacy
+    var isPiece: Bool { type == EntryType.thought || type == EntryType.piece } // Both are pieces
     
     var displayTags: String {
         tags.isEmpty ? "" : tags.joined(separator: ", ")
@@ -141,6 +144,48 @@ extension Entry {
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter.string(from: createdAt)
+    }
+
+    // MARK: - AI Integration
+    var aiMetadata: AIMetadata? {
+        get {
+            guard let metadataDict = metadata,
+                  let aiDataString = metadataDict["ai"]?.wrappedValue as? String,
+                  let aiData = Data(base64Encoded: aiDataString) else {
+                return nil
+            }
+            return try? JSONDecoder().decode(AIMetadata.self, from: aiData)
+        }
+        set {
+            if let newValue = newValue {
+                if let aiData = try? JSONEncoder().encode(newValue) {
+                    var metadataDict = metadata ?? [:]
+                    metadataDict["ai"] = FlexibleCodable(aiData.base64EncodedString())
+                    metadata = metadataDict
+                }
+            } else {
+                // Remove AI metadata
+                var metadataDict = metadata ?? [:]
+                metadataDict.removeValue(forKey: "ai")
+                metadata = metadataDict.isEmpty ? nil : metadataDict
+            }
+        }
+    }
+
+    var hasAIProcessing: Bool {
+        return aiMetadata != nil
+    }
+
+    var hasAIActions: Bool {
+        return aiMetadata?.hasActions ?? false
+    }
+
+    var hasAIResearch: Bool {
+        return aiMetadata?.hasResearch ?? false
+    }
+
+    var needsAIProcessing: Bool {
+        return aiMetadata == nil
     }
     
     mutating func markAsDone() {
@@ -182,5 +227,41 @@ extension Entry {
         newEntry.metadata = metadata
 
         return newEntry
+    }
+
+    // MARK: - AI Helper Methods
+    mutating func setAIMetadata(_ aiMetadata: AIMetadata) {
+        self.aiMetadata = aiMetadata
+    }
+
+    mutating func addAIAction(_ action: AIAction) {
+        var currentMetadata = aiMetadata ?? AIMetadata()
+        currentMetadata.actions.append(action)
+        self.aiMetadata = currentMetadata
+    }
+
+    mutating func updateAIAction(_ actionId: String, status: ActionStatus) {
+        guard var currentMetadata = aiMetadata else { return }
+
+        if let index = currentMetadata.actions.firstIndex(where: { $0.id == actionId }) {
+            currentMetadata.actions[index].status = status
+            self.aiMetadata = currentMetadata
+        }
+    }
+
+    mutating func setAIResearch(_ research: ResearchResults) {
+        var currentMetadata = aiMetadata ?? AIMetadata()
+        currentMetadata.researchResults = research
+        self.aiMetadata = currentMetadata
+    }
+
+    // Get executed actions of a specific type
+    func getExecutedActions(ofType type: AIActionType) -> [AIAction] {
+        return aiMetadata?.executedActions.filter { $0.type == type } ?? []
+    }
+
+    // Check if a specific action type was executed
+    func hasExecutedAction(ofType type: AIActionType) -> Bool {
+        return !getExecutedActions(ofType: type).isEmpty
     }
 }

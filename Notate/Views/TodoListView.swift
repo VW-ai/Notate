@@ -3,227 +3,225 @@ import SwiftUI
 struct TodoListView: View {
     let todos: [Entry]
     @EnvironmentObject var appState: AppState
-    
-    var body: some View {
-        List {
-            ForEach(todos) { todo in
-                TodoRowView(todo: todo)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button("Convert to Thought") {
-                            appState.convertTodoToThought(todo)
-                        }
-                        .tint(.blue)
 
-                        Button("Delete", role: .destructive) {
-                            appState.deleteEntry(todo)
-                        }
-                        
-                        if todo.status == EntryStatus.open {
-                            Button("Done") {
-                                appState.markTodoAsDone(todo)
-                            }
-                            .tint(.green)
-                        } else {
-                            Button("Reopen") {
-                                appState.markTodoAsOpen(todo)
-                            }
-                            .tint(.orange)
-                        }
-                    }
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: ModernDesignSystem.Spacing.medium) {
+                ForEach(todos) { todo in
+                    ModernTodoCard(todo: todo)
+                        .environmentObject(appState)
+                }
             }
+            .padding(.horizontal, ModernDesignSystem.Spacing.regular)
+            .padding(.vertical, ModernDesignSystem.Spacing.small)
         }
-        .listStyle(PlainListStyle())
+        .background(ModernDesignSystem.Colors.surfaceBackground)
     }
 }
 
-struct TodoRowView: View {
+struct ModernTodoCard: View {
     let todo: Entry
     @EnvironmentObject var appState: AppState
-    @State private var isExpanded = false
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                // Checkbox
-                Button(action: {
-                    if todo.status == EntryStatus.open {
-                        appState.markTodoAsDone(todo)
-                    } else {
-                        appState.markTodoAsOpen(todo)
-                    }
-                }) {
-                    Image(systemName: todo.status == EntryStatus.done ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(todo.status == EntryStatus.done ? .green : .gray)
-                        .font(.title2)
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                VStack(alignment: .leading, spacing: 4) {
+        ModernCard(
+            padding: ModernDesignSystem.Spacing.regular,
+            cornerRadius: ModernDesignSystem.CornerRadius.medium,
+            shadowIntensity: isCompleted ? ModernDesignSystem.Shadow.subtle : ModernDesignSystem.Shadow.light
+        ) {
+            VStack(spacing: ModernDesignSystem.Spacing.medium) {
+                // Main content row
+                HStack(spacing: ModernDesignSystem.Spacing.medium) {
+                    // Completion checkbox
+                    completionButton
+
                     // Content
-                    Text(todo.content)
-                        .strikethrough(todo.status == EntryStatus.done)
-                        .foregroundColor(todo.status == EntryStatus.done ? .secondary : .primary)
-                        .lineLimit(isExpanded ? nil : 2)
-                    
-                    // Metadata
+                    VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.tiny) {
+                        Text(todo.content)
+                            .font(ModernDesignSystem.Typography.body)
+                            .foregroundColor(isCompleted ? ModernDesignSystem.Colors.secondary : ModernDesignSystem.Colors.primary)
+                            .strikethrough(isCompleted)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+
+                        // Quick metadata
+                        quickMetadataRow
+                    }
+
+                    Spacer()
+
+                    // Priority indicator
+                    if let priority = todo.priority {
+                        PriorityIndicator(priority: priority, style: .dots)
+                    }
+                }
+
+                // Selection indicator
+                if appState.selectedEntry?.id == todo.id {
                     HStack {
-                        // Priority indicator
-                        if let priority = todo.priority {
-                            PriorityBadge(priority: priority)
-                        }
-                        
-                        // Status badge
-                        StatusBadge(status: todo.status)
-                        
-                        // Tags
-                        if !todo.tags.isEmpty {
-                            ForEach(todo.tags.prefix(3), id: \.self) { tag in
-                                TagBadge(tag: tag)
-                            }
-                            
-                            if todo.tags.count > 3 {
-                                Text("+\(todo.tags.count - 3)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
+                        Rectangle()
+                            .fill(ModernDesignSystem.Colors.accent)
+                            .frame(height: 2)
                         Spacer()
-                        
-                        // Date
-                        Text(todo.formattedDate)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
-                
-                Spacer()
-                
-                // Expand button
-                Button(action: { isExpanded.toggle() }) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            
-            // Expanded content
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    Divider()
-                    
-                    // Additional metadata
-                    HStack {
-                        Text("Trigger: \(todo.triggerUsed)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        if let sourceApp = todo.sourceApp {
-                            Text("• \(sourceApp)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    // All tags
-                    if !todo.tags.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Tags:")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 4) {
-                                ForEach(todo.tags, id: \.self) { tag in
-                                    TagBadge(tag: tag)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Actions
-                    HStack {
-                        Button("Edit Priority") {
-                            // TODO: Implement priority editing
-                        }
-                        .font(.caption)
-                        
-                        Spacer()
-                        
-                        Button("Convert to Thought") {
-                            appState.convertTodoToThought(todo)
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        
-                        Button("Delete", role: .destructive) {
-                            appState.deleteEntry(todo)
-                        }
-                        .font(.caption)
-                    }
-                }
-                .padding(.leading, 40) // Align with content
             }
         }
-        .padding(.vertical, 4)
+        .opacity(isCompleted ? 0.7 : 1.0)
+        .background(
+            RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.medium)
+                .stroke(ModernDesignSystem.Colors.accent, lineWidth: isSelected ? 2 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.medium)
+                        .fill(isSelected ? ModernDesignSystem.Colors.accent.opacity(0.05) : Color.clear)
+                )
+        )
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.selectedEntry = todo
+            }
+        }
     }
-}
 
-struct PriorityBadge: View {
-    let priority: EntryPriority
-    
-    var body: some View {
-        Text(priority.displayName)
-            .font(.caption)
-            .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(priorityColor.opacity(0.2))
-            .foregroundColor(priorityColor)
-            .cornerRadius(4)
+    private var completionButton: some View {
+        Button(action: toggleCompletion) {
+            Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(isCompleted ? ModernDesignSystem.Colors.completedColor : ModernDesignSystem.Colors.secondary)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
-    
-    private var priorityColor: Color {
-        switch priority {
-        case .high: return .red
-        case .medium: return .orange
-        case .low: return .green
+
+    private var quickMetadataRow: some View {
+        HStack(spacing: ModernDesignSystem.Spacing.small) {
+            Text(todo.formattedDate)
+                .font(ModernDesignSystem.Typography.tiny)
+                .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+            if let priority = todo.priority {
+                Text("•")
+                    .font(ModernDesignSystem.Typography.tiny)
+                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+                PriorityIndicator(priority: priority, style: .badge)
+            }
+
+            Spacer()
+
+            EntryTypeBadge(type: todo.type, size: .small)
+        }
+    }
+
+
+    private var isCompleted: Bool {
+        todo.status == .done
+    }
+
+    private var isSelected: Bool {
+        appState.selectedEntry?.id == todo.id
+    }
+
+    private func toggleCompletion() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            if isCompleted {
+                appState.markTodoAsOpen(todo)
+            } else {
+                appState.markTodoAsDone(todo)
+            }
         }
     }
 }
 
-struct StatusBadge: View {
-    let status: EntryStatus
-    
+// MARK: - Modern Todo Row for List View
+struct ModernTodoRowView: View {
+    let todo: Entry
+    @EnvironmentObject var appState: AppState
+
     var body: some View {
-        Text(status.displayName)
-            .font(.caption)
-            .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(statusColor.opacity(0.2))
-            .foregroundColor(statusColor)
-            .cornerRadius(4)
+        ModernCard(
+            padding: ModernDesignSystem.Spacing.medium,
+            cornerRadius: ModernDesignSystem.CornerRadius.small,
+            shadowIntensity: ModernDesignSystem.Shadow.minimal
+        ) {
+            VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
+                HStack(spacing: ModernDesignSystem.Spacing.medium) {
+                    // Completion checkbox
+                    Button(action: toggleCompletion) {
+                        Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(isCompleted ? ModernDesignSystem.Colors.success : ModernDesignSystem.Colors.secondary)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    // Content
+                    VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.tiny) {
+                        Text(todo.content)
+                            .font(ModernDesignSystem.Typography.body)
+                            .foregroundColor(isCompleted ? ModernDesignSystem.Colors.secondary : ModernDesignSystem.Colors.primary)
+                            .strikethrough(isCompleted)
+                            .lineLimit(2)
+
+                        // Metadata row
+                        HStack(spacing: ModernDesignSystem.Spacing.small) {
+                            Text(todo.formattedDate)
+                                .font(ModernDesignSystem.Typography.tiny)
+                                .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+                            if let priority = todo.priority {
+                                Text("•")
+                                    .font(ModernDesignSystem.Typography.tiny)
+                                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+
+                                PriorityIndicator(priority: priority, style: .dots)
+                            }
+
+                            Spacer()
+
+                            if !todo.tags.isEmpty {
+                                Text("\(todo.tags.count) tag\(todo.tags.count == 1 ? "" : "s")")
+                                    .font(ModernDesignSystem.Typography.tiny)
+                                    .foregroundColor(ModernDesignSystem.Colors.secondary)
+                            }
+                        }
+                    }
+
+                    Spacer()
+                }
+            }
+        }
+        .opacity(isCompleted ? 0.6 : 1.0)
+        .background(
+            RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                .stroke(ModernDesignSystem.Colors.accent, lineWidth: isSelected ? 2 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                        .fill(isSelected ? ModernDesignSystem.Colors.accent.opacity(0.05) : Color.clear)
+                )
+        )
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.selectedEntry = todo
+            }
+        }
     }
-    
-    private var statusColor: Color {
-        switch status {
-        case .open: return .blue
-        case .done: return .green
+
+    private var isCompleted: Bool {
+        todo.status == .done
+    }
+
+    private var isSelected: Bool {
+        appState.selectedEntry?.id == todo.id
+    }
+
+    private func toggleCompletion() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            if isCompleted {
+                appState.markTodoAsOpen(todo)
+            } else {
+                appState.markTodoAsDone(todo)
+            }
         }
     }
 }
 
-struct TagBadge: View {
-    let tag: String
-    
-    var body: some View {
-        Text(tag)
-            .font(.caption)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.blue.opacity(0.1))
-            .foregroundColor(.blue)
-            .cornerRadius(4)
-    }
-}
+
