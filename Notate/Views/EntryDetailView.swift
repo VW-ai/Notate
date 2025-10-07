@@ -14,9 +14,21 @@ struct EntryDetailView: View {
         appState.permissionManager
     }
 
+    // Get the latest entry from appState to ensure UI updates
+    private var currentEntry: Entry? {
+        guard let entry = entry else { return nil }
+        return appState.entries.first(where: { $0.id == entry.id }) ?? entry
+    }
+
+    // Check if THIS specific entry is being processed
+    private var isProcessingAI: Bool {
+        guard let entryId = entry?.id else { return false }
+        return appState.processingEntryIds.contains(entryId)
+    }
+
     var body: some View {
         Group {
-            if let entry = entry {
+            if let entry = currentEntry {
                 detailContent(for: entry)
             } else {
                 emptyDetailView
@@ -68,7 +80,9 @@ struct EntryDetailView: View {
                 metadataSection(entry)
 
                 // AI Section
-                if entry.hasAIProcessing {
+                if isProcessingAI {
+                    aiLoadingSection()
+                } else if entry.hasAIProcessing {
                     aiSection(entry)
                 } else {
                     aiProcessingButton(entry)
@@ -326,6 +340,7 @@ struct EntryDetailView: View {
                     }
                     .font(ModernDesignSystem.Typography.small)
                     .foregroundColor(ModernDesignSystem.Colors.accent)
+                    .disabled(isProcessingAI)
                 }
 
                 if let aiMetadata = entry.aiMetadata {
@@ -381,6 +396,46 @@ struct EntryDetailView: View {
         }
     }
 
+    private func aiLoadingSection() -> some View {
+        ModernCard(
+            padding: ModernDesignSystem.Spacing.regular,
+            cornerRadius: ModernDesignSystem.CornerRadius.medium,
+            shadowIntensity: ModernDesignSystem.Shadow.light
+        ) {
+            VStack(spacing: ModernDesignSystem.Spacing.medium) {
+                HStack {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(ModernDesignSystem.Colors.accent)
+
+                    Text("AI Insights")
+                        .font(ModernDesignSystem.Typography.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(ModernDesignSystem.Colors.primary)
+
+                    Spacer()
+                }
+
+                VStack(spacing: ModernDesignSystem.Spacing.regular) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(1.2)
+
+                    Text("AI is analyzing your entry...")
+                        .font(ModernDesignSystem.Typography.body)
+                        .foregroundColor(ModernDesignSystem.Colors.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Text("Generating insights and suggested actions")
+                        .font(ModernDesignSystem.Typography.small)
+                        .foregroundColor(ModernDesignSystem.Colors.secondary.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.vertical, ModernDesignSystem.Spacing.large)
+            }
+        }
+    }
+
     private func aiActionsSection(_ actions: [AIAction], for entry: Entry) -> some View {
         VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
             Text("Suggested Actions")
@@ -389,7 +444,13 @@ struct EntryDetailView: View {
                 .foregroundColor(ModernDesignSystem.Colors.primary)
 
             ForEach(actions, id: \.id) { action in
-                aiActionRow(action, for: entry)
+                // Get the latest action status from appState
+                if let latestEntry = appState.entries.first(where: { $0.id == entry.id }),
+                   let latestAction = latestEntry.aiMetadata?.actions.first(where: { $0.id == action.id }) {
+                    aiActionRow(latestAction, for: entry)
+                } else {
+                    aiActionRow(action, for: entry)
+                }
             }
         }
     }
@@ -428,25 +489,72 @@ struct EntryDetailView: View {
     }
 
     private func actionStatusButton(_ action: AIAction, for entry: Entry) -> some View {
-        Button(action: {
-            executeAction(action, for: entry)
-        }) {
-            HStack(spacing: ModernDesignSystem.Spacing.tiny) {
-                Image(systemName: action.status.icon)
-                    .font(.system(size: 10, weight: .medium))
+        HStack(spacing: ModernDesignSystem.Spacing.tiny) {
+            // Main action button (Execute/Done/Failed)
+            Button(action: {
+                executeAction(action, for: entry)
+            }) {
+                HStack(spacing: ModernDesignSystem.Spacing.tiny) {
+                    Image(systemName: action.status.icon)
+                        .font(.system(size: 10, weight: .medium))
 
-                Text(action.status.buttonDisplayName)
-                    .font(ModernDesignSystem.Typography.tiny)
-                    .fontWeight(.medium)
+                    Text(action.status.buttonDisplayName)
+                        .font(ModernDesignSystem.Typography.tiny)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(action.status.color)
+                .padding(.horizontal, ModernDesignSystem.Spacing.small)
+                .padding(.vertical, ModernDesignSystem.Spacing.tiny)
+                .background(action.status.color.opacity(0.1))
+                .clipShape(Capsule())
             }
-            .foregroundColor(action.status.color)
-            .padding(.horizontal, ModernDesignSystem.Spacing.small)
-            .padding(.vertical, ModernDesignSystem.Spacing.tiny)
-            .background(action.status.color.opacity(0.1))
-            .clipShape(Capsule())
+            .buttonStyle(PlainButtonStyle())
+            .disabled(action.status == .executed || action.status == .executing)
+
+            // Jump button (for calendar, maps, reminders, and contacts when executed)
+            if action.status == .executed && (action.type == .calendar || action.type == .maps || action.type == .appleReminders || action.type == .contacts) {
+                Button(action: {
+                    jumpToAction(action, for: entry)
+                }) {
+                    HStack(spacing: ModernDesignSystem.Spacing.tiny) {
+                        Image(systemName: "arrow.up.forward")
+                            .font(.system(size: 10, weight: .medium))
+
+                        Text("Jump")
+                            .font(ModernDesignSystem.Typography.tiny)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, ModernDesignSystem.Spacing.small)
+                    .padding(.vertical, ModernDesignSystem.Spacing.tiny)
+                    .background(Color.blue.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            // Revert button (only when executed and reversible)
+            if action.status == .executed && action.reversible && action.type != .webSearch {
+                Button(action: {
+                    revertAction(action, for: entry)
+                }) {
+                    HStack(spacing: ModernDesignSystem.Spacing.tiny) {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 10, weight: .medium))
+
+                        Text("Revert")
+                            .font(ModernDesignSystem.Typography.tiny)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, ModernDesignSystem.Spacing.small)
+                    .padding(.vertical, ModernDesignSystem.Spacing.tiny)
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
         }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(action.status == .executed)
     }
 
     private func aiResearchSection(_ research: ResearchResults) -> some View {
@@ -637,6 +745,13 @@ struct EntryDetailView: View {
             let dueDate = action.data["dueDate"]?.dateValue
 
             let reminderId = try await toolService.createReminder(title: title, notes: notes, dueDate: dueDate)
+
+            // Store reminder ID for reversal
+            if !reminderId.isEmpty {
+                let reverseData: [String: ActionData] = ["reminderId": ActionData(reminderId)]
+                appState.databaseManager.updateAIActionData(entry.id, actionId: action.id, reverseData: reverseData)
+            }
+
             return !reminderId.isEmpty
 
         case .calendar:
@@ -647,6 +762,17 @@ struct EntryDetailView: View {
             let notes = action.data["notes"]?.stringValue
 
             let eventId = try await toolService.createCalendarEvent(title: title, notes: notes, startDate: startDate, endDate: endDate)
+
+            // Store event ID and dates for reversal and jump
+            if !eventId.isEmpty {
+                let reverseData: [String: ActionData] = [
+                    "eventId": ActionData(eventId),
+                    "startDate": ActionData(startDate),
+                    "endDate": ActionData(endDate)
+                ]
+                appState.databaseManager.updateAIActionData(entry.id, actionId: action.id, reverseData: reverseData)
+            }
+
             return !eventId.isEmpty
 
         case .contacts:
@@ -657,12 +783,24 @@ struct EntryDetailView: View {
             let phone = action.data["phone"]?.stringValue
 
             let contactId = try await toolService.createContact(firstName: firstName, lastName: lastName, phoneNumber: phone, email: email)
+
+            // Store contact ID for reversal
+            if !contactId.isEmpty {
+                let reverseData: [String: ActionData] = ["contactId": ActionData(contactId)]
+                appState.databaseManager.updateAIActionData(entry.id, actionId: action.id, reverseData: reverseData)
+            }
+
             return !contactId.isEmpty
 
         case .maps:
             // Extract location data
             let query = action.data["query"]?.stringValue ?? entry.content
-            try await toolService.openInMaps(address: query)
+
+            // Store the query for jump functionality (don't auto-open)
+            let reverseData: [String: ActionData] = ["query": ActionData(query)]
+            appState.databaseManager.updateAIActionData(entry.id, actionId: action.id, reverseData: reverseData)
+
+            // Don't open maps automatically - only when user clicks jump
             return true
 
         case .webSearch:
@@ -713,6 +851,268 @@ struct EntryDetailView: View {
             print("❌ Web search AI analysis failed: \(error)")
             return false
         }
+    }
+
+    // MARK: - Jump and Revert Actions
+
+    private func jumpToAction(_ action: AIAction, for entry: Entry) {
+        print("🚀 Jump action clicked for: \(action.type.displayName)")
+        print("   Reverse data: \(action.reverseData?.keys.joined(separator: ", ") ?? "nil")")
+
+        Task {
+            let toolService = ToolService()
+
+            switch action.type {
+            case .calendar:
+                // Open Calendar app and navigate to the event
+                if let reverseData = action.reverseData {
+                    print("   Calendar reverseData keys: \(reverseData.keys)")
+                    if let eventId = reverseData["eventId"]?.stringValue,
+                       let startDate = reverseData["startDate"]?.dateValue {
+                        print("   Opening calendar with eventId: \(eventId), date: \(startDate)")
+                        await MainActor.run {
+                            openCalendarApp(eventId: eventId, date: startDate)
+                        }
+                    } else {
+                        print("❌ Missing eventId or startDate in reverseData")
+                        await MainActor.run {
+                            showJumpErrorAlert(message: "Calendar event data is missing. The event may have been created before this feature was added.")
+                        }
+                    }
+                } else {
+                    print("❌ No reverseData found for calendar action")
+                    await MainActor.run {
+                        showJumpErrorAlert(message: "Calendar event data is missing. The event may have been created before this feature was added.")
+                    }
+                }
+
+            case .appleReminders:
+                // Open Reminders app
+                await MainActor.run {
+                    openRemindersApp()
+                }
+
+            case .contacts:
+                // Open Contacts app
+                if let reverseData = action.reverseData,
+                   let contactId = reverseData["contactId"]?.stringValue {
+                    await MainActor.run {
+                        openContactsApp(contactId: contactId)
+                    }
+                } else {
+                    // Fallback: just open Contacts app
+                    await MainActor.run {
+                        openContactsApp(contactId: nil)
+                    }
+                }
+
+            case .maps:
+                // Open Maps app with the location
+                if let reverseData = action.reverseData {
+                    print("   Maps reverseData keys: \(reverseData.keys)")
+                    if let query = reverseData["query"]?.stringValue {
+                        print("   Opening Maps with query: \(query)")
+                        do {
+                            try await toolService.openInMaps(address: query)
+                            print("✅ Opened Maps for: \(query)")
+                        } catch {
+                            print("❌ Failed to open Maps: \(error)")
+                            await MainActor.run {
+                                showJumpErrorAlert(message: "Failed to open Maps: \(error.localizedDescription)")
+                            }
+                        }
+                    } else {
+                        print("❌ Missing query in reverseData")
+                        // Fallback: try to get from original action data
+                        if let query = action.data["query"]?.stringValue {
+                            print("   Trying with original query: \(query)")
+                            do {
+                                try await toolService.openInMaps(address: query)
+                                print("✅ Opened Maps for: \(query)")
+                            } catch {
+                                print("❌ Failed to open Maps: \(error)")
+                                await MainActor.run {
+                                    showJumpErrorAlert(message: "Failed to open Maps: \(error.localizedDescription)")
+                                }
+                            }
+                        } else {
+                            await MainActor.run {
+                                showJumpErrorAlert(message: "Location data is missing.")
+                            }
+                        }
+                    }
+                } else {
+                    print("❌ No reverseData found for maps action")
+                    // Fallback: try to get from original action data
+                    if let query = action.data["query"]?.stringValue {
+                        print("   Trying with original query: \(query)")
+                        do {
+                            try await toolService.openInMaps(address: query)
+                            print("✅ Opened Maps for: \(query)")
+                        } catch {
+                            print("❌ Failed to open Maps: \(error)")
+                            await MainActor.run {
+                                showJumpErrorAlert(message: "Failed to open Maps: \(error.localizedDescription)")
+                            }
+                        }
+                    } else {
+                        await MainActor.run {
+                            showJumpErrorAlert(message: "Location data is missing.")
+                        }
+                    }
+                }
+
+            default:
+                break
+            }
+        }
+    }
+
+    private func revertAction(_ action: AIAction, for entry: Entry) {
+        Task {
+            let toolService = ToolService()
+
+            do {
+                switch action.type {
+                case .appleReminders:
+                    if let reminderId = action.reverseData?["reminderId"]?.stringValue {
+                        try await toolService.deleteReminder(reminderId: reminderId)
+                        print("✅ Deleted reminder: \(reminderId)")
+                    }
+
+                case .calendar:
+                    if let eventId = action.reverseData?["eventId"]?.stringValue {
+                        try await toolService.deleteCalendarEvent(eventId: eventId)
+                        print("✅ Deleted calendar event: \(eventId)")
+                    }
+
+                case .contacts:
+                    if let contactId = action.reverseData?["contactId"]?.stringValue {
+                        try await toolService.deleteContact(contactId: contactId)
+                        print("✅ Deleted contact: \(contactId)")
+                    }
+
+                case .maps:
+                    // Maps doesn't create anything, so nothing to revert
+                    break
+
+                case .webSearch:
+                    // Web search doesn't create anything, so nothing to revert
+                    break
+                }
+
+                // Update action status to reversed
+                await MainActor.run {
+                    appState.databaseManager.updateAIActionStatus(entry.id, actionId: action.id, status: .reversed)
+                }
+
+                print("↩️ Reverted action: \(action.type.displayName)")
+            } catch {
+                print("❌ Failed to revert action: \(error)")
+                // Show error alert
+                await MainActor.run {
+                    showRevertErrorAlert(for: action.type, error: error)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func openCalendarApp(eventId: String, date: Date) {
+        // Use AppleScript to open Calendar and show the specific date
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MM/dd/yyyy"
+        let dateString = dateFormatter.string(from: date)
+
+        let script = """
+        tell application "Calendar"
+            activate
+            view calendar at date "\(dateString)"
+        end tell
+        """
+
+        var error: NSDictionary?
+        if let scriptObject = NSAppleScript(source: script) {
+            scriptObject.executeAndReturnError(&error)
+            if let error = error {
+                print("❌ AppleScript error: \(error)")
+                // Fallback: just open Calendar app
+                openCalendarAppFallback()
+            } else {
+                print("✅ Opened Calendar app and navigated to date: \(dateString)")
+            }
+        } else {
+            // Fallback: just open Calendar app
+            openCalendarAppFallback()
+        }
+    }
+
+    @MainActor
+    private func openCalendarAppFallback() {
+        if let calendarAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iCal") {
+            NSWorkspace.shared.open(calendarAppURL)
+            print("✅ Opened Calendar app (fallback)")
+        }
+    }
+
+    @MainActor
+    private func openRemindersApp() {
+        if let remindersAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.reminders") {
+            NSWorkspace.shared.open(remindersAppURL)
+            print("✅ Opened Reminders app")
+        } else {
+            showJumpErrorAlert(message: "Could not find Reminders app.")
+        }
+    }
+
+    @MainActor
+    private func openContactsApp(contactId: String?) {
+        if let contactId = contactId {
+            // Try to open specific contact using addressbook:// URL scheme
+            if let url = URL(string: "addressbook://\(contactId)") {
+                let success = NSWorkspace.shared.open(url)
+                if success {
+                    print("✅ Opened Contacts app with contact: \(contactId)")
+                } else {
+                    print("❌ Failed to open contact with ID, opening Contacts app instead")
+                    openContactsAppFallback()
+                }
+            } else {
+                openContactsAppFallback()
+            }
+        } else {
+            openContactsAppFallback()
+        }
+    }
+
+    @MainActor
+    private func openContactsAppFallback() {
+        if let contactsAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.AddressBook") {
+            NSWorkspace.shared.open(contactsAppURL)
+            print("✅ Opened Contacts app")
+        } else {
+            showJumpErrorAlert(message: "Could not find Contacts app.")
+        }
+    }
+
+    @MainActor
+    private func showRevertErrorAlert(for actionType: AIActionType, error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Failed to Revert \(actionType.displayName)"
+        alert.informativeText = "Could not revert the action: \(error.localizedDescription)\n\nThe resource may have already been deleted manually."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    @MainActor
+    private func showJumpErrorAlert(message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Cannot Jump to Resource"
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }
 
