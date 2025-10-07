@@ -3,6 +3,18 @@
 <plist version="1.0">
 <dict>
 	<key>NSInputMonitoringUsageDescription</key>
-	<string>Notate 只在你输入 “///” 后短暂记录你接下来的文字，用于快速记事。除触发内容外，我们不会保存其他按键。</string>
+	<string>Notate 只在你输入 "///" 后短暂记录你接下来的文字，用于快速记事。除触发内容外，我们不会保存其他按键。</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Notate needs access to Calendar to automatically create events from your TODOs and meeting notes.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Notate needs full access to Calendar to create, update, and manage calendar events from your captured content.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Notate needs access to Reminders to automatically create tasks from your captured TODOs.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Notate needs full access to Reminders to create, update, and manage reminders from your captured content.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Notate needs access to Contacts to save contact information from your entries.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Notate uses your location to provide context-aware suggestions and nearby recommendations.</string>
 </dict>
 </plist>

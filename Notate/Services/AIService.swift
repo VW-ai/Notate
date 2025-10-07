@@ -16,10 +16,15 @@ class AIService: ObservableObject {
     // MARK: - Configuration
 
     func setAPIKey(_ key: String) {
-        self.apiKey = key
-        saveAPIKey(key)
-        isConfigured = !key.isEmpty
+        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("🔑 [AIService] Setting API key (length: \(trimmedKey.count), prefix: \(String(trimmedKey.prefix(7)))...)")
+
+        self.apiKey = trimmedKey
+        saveAPIKey(trimmedKey)
+        isConfigured = !trimmedKey.isEmpty
         lastError = nil
+
+        print("✅ [AIService] API key saved, isConfigured: \(isConfigured)")
     }
 
     func testConnection() async -> Bool {
@@ -81,8 +86,14 @@ class AIService: ObservableObject {
 
     private func makeAPICall(prompt: String, maxTokens: Int = 500) async throws -> String {
         guard let apiKey = apiKey, !apiKey.isEmpty else {
+            print("❌ [AIService] API key is missing or empty")
             throw AIServiceError.noAPIKey
         }
+
+        // Debug: Show API key format (masked)
+        let keyPrefix = String(apiKey.prefix(7))
+        let keyLength = apiKey.count
+        print("🔑 [AIService] Using API key: \(keyPrefix)... (length: \(keyLength))")
 
         guard let url = URL(string: baseURL) else {
             throw AIServiceError.invalidURL
@@ -91,7 +102,7 @@ class AIService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(apiKey.trimmingCharacters(in: .whitespacesAndNewlines), forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
         let requestBody: [String: Any] = [
@@ -150,8 +161,12 @@ class AIService: ObservableObject {
 
     private func loadAPIKey() {
         if let key = KeychainHelper.load(key: "claude_api_key") {
-            self.apiKey = key
-            self.isConfigured = !key.isEmpty
+            let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("🔑 [AIService] Loaded API key from keychain (length: \(trimmedKey.count), prefix: \(String(trimmedKey.prefix(7)))...)")
+            self.apiKey = trimmedKey
+            self.isConfigured = !trimmedKey.isEmpty
+        } else {
+            print("⚠️ [AIService] No API key found in keychain")
         }
     }
 

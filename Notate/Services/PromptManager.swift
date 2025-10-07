@@ -478,14 +478,6 @@ extension PromptManager {
 
     /// Log prompt usage for analytics
     static func logPromptUsage(_ type: String, responseTime: TimeInterval, rating: Double? = nil) {
-        let metrics = PromptMetrics(
-            promptType: type,
-            version: promptVersion,
-            responseTime: responseTime,
-            userRating: rating,
-            timestamp: Date()
-        )
-
         // TODO: Implement prompt analytics storage
         print("📊 Prompt metrics: \(type) - \(responseTime)ms - rating: \(rating ?? 0)")
     }

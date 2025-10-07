@@ -600,6 +600,11 @@ struct EntryDetailView: View {
                 print("❌ Error executing action: \(error)")
                 await MainActor.run {
                     appState.databaseManager.updateAIActionStatus(entry.id, actionId: action.id, status: .failed)
+
+                    // Show permission guidance alert if it's a permission error
+                    if let toolError = error as? ToolError, case .permissionDenied = toolError {
+                        showPermissionDeniedAlert(for: action.type)
+                    }
                 }
             }
         }
@@ -758,6 +763,78 @@ extension ActionStatus {
             return "Failed"
         case .reversed:
             return "Reversed"
+        }
+    }
+}
+
+// MARK: - Permission Alert Extension
+extension EntryDetailView {
+    private func showPermissionDeniedAlert(for actionType: AIActionType) {
+        let alert = NSAlert()
+        alert.messageText = "\(actionType.displayName) Permission Required"
+
+        let settingsURL: String
+        let instructions: String
+
+        switch actionType {
+        case .calendar:
+            settingsURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"
+            instructions = """
+            Notate needs Calendar access to create events automatically.
+
+            To enable:
+            1. Click "Open Settings" below
+            2. Find "Notate" in the list
+            3. Toggle it ON
+            4. Return to Notate and try again
+            """
+        case .appleReminders:
+            settingsURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
+            instructions = """
+            Notate needs Reminders access to create tasks automatically.
+
+            To enable:
+            1. Click "Open Settings" below
+            2. Find "Notate" in the list
+            3. Toggle it ON
+            4. Return to Notate and try again
+            """
+        case .contacts:
+            settingsURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts"
+            instructions = """
+            Notate needs Contacts access to save contact information.
+
+            To enable:
+            1. Click "Open Settings" below
+            2. Find "Notate" in the list
+            3. Toggle it ON
+            4. Return to Notate and try again
+            """
+        case .maps:
+            settingsURL = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
+            instructions = """
+            Notate needs Location Services to open maps.
+
+            To enable:
+            1. Click "Open Settings" below
+            2. Find "Notate" in the list
+            3. Toggle it ON
+            4. Return to Notate and try again
+            """
+        case .webSearch:
+            return // Web search doesn't need permissions
+        }
+
+        alert.informativeText = instructions
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            if let url = URL(string: settingsURL) {
+                NSWorkspace.shared.open(url)
+            }
         }
     }
 }

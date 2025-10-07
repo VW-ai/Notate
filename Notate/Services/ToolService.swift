@@ -12,34 +12,124 @@ class ToolService: ObservableObject {
     // MARK: - Permission Management
 
     func requestCalendarPermissions() async -> Bool {
-        return await withCheckedContinuation { continuation in
-            eventStore.requestAccess(to: .event) { granted, error in
-                continuation.resume(returning: granted)
+        print("📅 [ToolService] Requesting calendar permissions...")
+
+        // Check current authorization status
+        let status = EKEventStore.authorizationStatus(for: .event)
+        print("📅 [ToolService] Current calendar auth status: \(status.rawValue)")
+
+        switch status {
+        case .fullAccess:
+            print("📅 [ToolService] Already have full access")
+            return true
+        case .writeOnly:
+            print("📅 [ToolService] Have write-only access")
+            return true
+        case .denied:
+            print("❌ [ToolService] Calendar access was denied - user needs to enable in System Settings")
+            return false
+        case .restricted:
+            print("❌ [ToolService] Calendar access is restricted")
+            return false
+        case .notDetermined:
+            print("📅 [ToolService] Calendar permission not determined, requesting...")
+            do {
+                let granted = try await eventStore.requestFullAccessToEvents()
+                print("📅 [ToolService] Calendar permission request result: \(granted)")
+                return granted
+            } catch {
+                print("❌ [ToolService] Calendar permission request error: \(error.localizedDescription)")
+                return false
             }
+        @unknown default:
+            print("⚠️ [ToolService] Unknown calendar auth status")
+            return false
         }
     }
 
     func requestRemindersPermissions() async -> Bool {
-        return await withCheckedContinuation { continuation in
-            eventStore.requestAccess(to: .reminder) { granted, error in
-                continuation.resume(returning: granted)
+        print("✅ [ToolService] Requesting reminders permissions...")
+
+        // Check current authorization status
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        print("✅ [ToolService] Current reminders auth status: \(status.rawValue)")
+
+        switch status {
+        case .fullAccess:
+            print("✅ [ToolService] Already have full access")
+            return true
+        case .writeOnly:
+            print("✅ [ToolService] Have write-only access")
+            return true
+        case .denied:
+            print("❌ [ToolService] Reminders access was denied - user needs to enable in System Settings")
+            return false
+        case .restricted:
+            print("❌ [ToolService] Reminders access is restricted")
+            return false
+        case .notDetermined:
+            print("✅ [ToolService] Reminders permission not determined, requesting...")
+            do {
+                let granted = try await eventStore.requestFullAccessToReminders()
+                print("✅ [ToolService] Reminders permission request result: \(granted)")
+                return granted
+            } catch {
+                print("❌ [ToolService] Reminders permission request error: \(error.localizedDescription)")
+                return false
             }
+        @unknown default:
+            print("⚠️ [ToolService] Unknown reminders auth status")
+            return false
         }
     }
 
     func requestContactsPermissions() async -> Bool {
-        return await withCheckedContinuation { continuation in
-            contactStore.requestAccess(for: .contacts) { granted, error in
-                continuation.resume(returning: granted)
+        print("👤 [ToolService] Requesting contacts permissions...")
+
+        // Check current authorization status
+        let status = CNContactStore.authorizationStatus(for: .contacts)
+        print("👤 [ToolService] Current contacts auth status: \(status.rawValue)")
+
+        switch status {
+        case .authorized:
+            print("👤 [ToolService] Already authorized")
+            return true
+        case .denied:
+            print("❌ [ToolService] Contacts access was denied - user needs to enable in System Settings")
+            return false
+        case .restricted:
+            print("❌ [ToolService] Contacts access is restricted")
+            return false
+        case .notDetermined:
+            print("👤 [ToolService] Contacts permission not determined, requesting...")
+            return await withCheckedContinuation { continuation in
+                contactStore.requestAccess(for: .contacts) { granted, error in
+                    if let error = error {
+                        print("❌ [ToolService] Contacts permission error: \(error.localizedDescription)")
+                    }
+                    print("👤 [ToolService] Contacts permission request result: \(granted)")
+                    continuation.resume(returning: granted)
+                }
             }
+        @unknown default:
+            print("⚠️ [ToolService] Unknown contacts auth status")
+            return false
         }
     }
 
     // MARK: - Calendar Integration
 
     func createCalendarEvent(title: String, notes: String?, startDate: Date, endDate: Date? = nil) async throws -> String {
+        print("📅 [ToolService] Creating calendar event...")
+        print("   Title: \(title)")
+        print("   Start: \(startDate)")
+        print("   Notes: \(notes ?? "none")")
+
         let hasPermission = await requestCalendarPermissions()
+        print("📅 [ToolService] Permission check: \(hasPermission)")
+
         guard hasPermission else {
+            print("❌ [ToolService] Calendar permission DENIED")
             throw ToolError.permissionDenied("Calendar access denied")
         }
 
@@ -50,8 +140,16 @@ class ToolService: ObservableObject {
         event.endDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
         event.calendar = eventStore.defaultCalendarForNewEvents
 
-        try eventStore.save(event, span: .thisEvent)
-        return event.eventIdentifier
+        print("📅 [ToolService] Default calendar: \(eventStore.defaultCalendarForNewEvents?.title ?? "none")")
+
+        do {
+            try eventStore.save(event, span: .thisEvent)
+            print("✅ [ToolService] Calendar event created successfully: \(event.eventIdentifier)")
+            return event.eventIdentifier
+        } catch {
+            print("❌ [ToolService] Failed to save calendar event: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     func updateCalendarEvent(eventId: String, title: String? = nil, notes: String? = nil, startDate: Date? = nil) async throws {
@@ -77,8 +175,16 @@ class ToolService: ObservableObject {
     // MARK: - Reminders Integration
 
     func createReminder(title: String, notes: String?, dueDate: Date? = nil, priority: Int = 0) async throws -> String {
+        print("✅ [ToolService] Creating reminder...")
+        print("   Title: \(title)")
+        print("   Due: \(dueDate?.description ?? "none")")
+        print("   Notes: \(notes ?? "none")")
+
         let hasPermission = await requestRemindersPermissions()
+        print("✅ [ToolService] Permission check: \(hasPermission)")
+
         guard hasPermission else {
+            print("❌ [ToolService] Reminders permission DENIED")
             throw ToolError.permissionDenied("Reminders access denied")
         }
 
@@ -87,15 +193,24 @@ class ToolService: ObservableObject {
         reminder.notes = notes
         reminder.calendar = eventStore.defaultCalendarForNewReminders()
 
+        print("✅ [ToolService] Default reminders calendar: \(eventStore.defaultCalendarForNewReminders()?.title ?? "none")")
+
         if let dueDate = dueDate {
             reminder.dueDateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: dueDate)
+            print("✅ [ToolService] Due date components set: \(reminder.dueDateComponents?.description ?? "none")")
         }
 
         // Priority: 0 = none, 1 = high, 5 = medium, 9 = low
         reminder.priority = priority
 
-        try eventStore.save(reminder, commit: true)
-        return reminder.calendarItemIdentifier
+        do {
+            try eventStore.save(reminder, commit: true)
+            print("✅ [ToolService] Reminder created successfully: \(reminder.calendarItemIdentifier)")
+            return reminder.calendarItemIdentifier
+        } catch {
+            print("❌ [ToolService] Failed to save reminder: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     func updateReminder(reminderId: String, title: String? = nil, notes: String? = nil, isCompleted: Bool? = nil) async throws {

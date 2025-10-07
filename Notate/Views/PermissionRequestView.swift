@@ -155,10 +155,10 @@ struct PermissionRequestView: View {
     private var permissionTitle: String {
         if let actionType = actionType {
             switch actionType {
-            case .appleCalendar: return "Calendar Access Required"
+            case .calendar: return "Calendar Access Required"
             case .appleReminders: return "Reminders Access Required"
-            case .appleContacts: return "Contacts Access Required"
-            case .appleMaps: return "Location Access Required"
+            case .contacts: return "Contacts Access Required"
+            case .maps: return "Location Access Required"
             case .webSearch: return "Network Access Required"
             }
         }
@@ -168,13 +168,13 @@ struct PermissionRequestView: View {
     private var permissionDescription: String {
         if let actionType = actionType {
             switch actionType {
-            case .appleCalendar:
+            case .calendar:
                 return "Notate needs access to Calendar to create events from your TODOs and manage your schedule."
             case .appleReminders:
                 return "Notate needs access to Reminders to create and manage tasks from your captured content."
-            case .appleContacts:
+            case .contacts:
                 return "Notate needs access to Contacts to save contact information from your entries."
-            case .appleMaps:
+            case .maps:
                 return "Notate needs location access to provide location-based suggestions and navigation."
             case .webSearch:
                 return "Notate needs network access to search the web for research and information."
@@ -186,7 +186,7 @@ struct PermissionRequestView: View {
     private var instructions: [String] {
         if let actionType = actionType {
             switch actionType {
-            case .appleCalendar:
+            case .calendar:
                 return [
                     "Click the button below to open System Settings",
                     "Go to Privacy & Security > Calendar",
@@ -198,13 +198,13 @@ struct PermissionRequestView: View {
                     "Go to Privacy & Security > Reminders",
                     "Enable Notate in the list of applications"
                 ]
-            case .appleContacts:
+            case .contacts:
                 return [
                     "Click the button below to open System Settings",
                     "Go to Privacy & Security > Contacts",
                     "Enable Notate in the list of applications"
                 ]
-            case .appleMaps:
+            case .maps:
                 return [
                     "Click the button below to open System Settings",
                     "Go to Privacy & Security > Location Services",
@@ -252,13 +252,13 @@ struct PermissionRequestView: View {
         if let actionType = actionType {
             let urlString: String
             switch actionType {
-            case .appleCalendar:
+            case .calendar:
                 urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"
             case .appleReminders:
                 urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
-            case .appleContacts:
+            case .contacts:
                 urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts"
-            case .appleMaps:
+            case .maps:
                 urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
             case .webSearch:
                 // For network access, just return - no specific settings to open
@@ -294,13 +294,13 @@ struct PermissionRequestView: View {
             let hasPermissionNow: Bool
 
             switch actionType {
-            case .appleCalendar:
+            case .calendar:
                 hasPermissionNow = await requestCalendarPermission()
             case .appleReminders:
                 hasPermissionNow = await requestRemindersPermission()
-            case .appleContacts:
+            case .contacts:
                 hasPermissionNow = await requestContactsPermission()
-            case .appleMaps, .webSearch:
+            case .maps, .webSearch:
                 // These don't require explicit permission requests
                 hasPermissionNow = true
             }

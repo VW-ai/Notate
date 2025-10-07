@@ -24,6 +24,9 @@ struct SettingsView: View {
                     // Trigger Configuration Section
                     triggerConfigurationSection
 
+                    // System Permissions Section
+                    systemPermissionsSection
+
                     // Capture Settings Section
                     captureSettingsSection
 
@@ -200,6 +203,74 @@ struct SettingsView: View {
                     .clipShape(Capsule())
                 }
                 .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private var systemPermissionsSection: some View {
+        modernSectionCard(
+            title: "System Permissions",
+            subtitle: "Manage app permissions for AI actions",
+            icon: "shield.checkered"
+        ) {
+            VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Calendar & Reminders")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text("Grant permissions to allow AI to create calendar events and reminders automatically.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 12) {
+                        modernActionButton(title: "Calendar Permissions", icon: "calendar") {
+                            openCalendarPermissions()
+                        }
+
+                        modernActionButton(title: "Reminders Permissions", icon: "checklist") {
+                            openRemindersPermissions()
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Contacts")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text("Grant permission to allow AI to save contact information from your entries.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    modernActionButton(title: "Contacts Permissions", icon: "person.crop.circle") {
+                        openContactsPermissions()
+                    }
+                }
+                .padding(.vertical, 8)
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Location Services")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text("Grant permission for location-based features and maps integration.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    modernActionButton(title: "Location Permissions", icon: "location") {
+                        openLocationPermissions()
+                    }
+                }
+                .padding(.vertical, 8)
             }
         }
     }
@@ -543,12 +614,38 @@ struct SettingsView: View {
         alert.addButton(withTitle: "Clear All")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
-        
+
         if alert.runModal() == .alertFirstButtonReturn {
             // Clear all entries from database
             for entry in appState.entries {
                 appState.databaseManager.deleteEntry(id: entry.id)
             }
+        }
+    }
+
+    // MARK: - Permission Helpers
+
+    private func openCalendarPermissions() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openRemindersPermissions() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openContactsPermissions() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openLocationPermissions() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") {
+            NSWorkspace.shared.open(url)
         }
     }
 }

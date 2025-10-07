@@ -85,14 +85,16 @@ class AIContentExtractor {
 
     /// Should create a calendar event based on extracted information
     func shouldCreateCalendarEvent(_ info: ExtractedInformation) -> Bool {
-        // Create calendar event if we have time information AND action intent
-        return info.timeInfo != nil && info.actionIntent != nil
+        // Create calendar event if we have time information
+        // Action intent is helpful but not required - meetings often don't have explicit action verbs
+        return info.timeInfo != nil
     }
 
     /// Should create a contact based on extracted information
     func shouldCreateContact(_ info: ExtractedInformation) -> Bool {
-        // Create contact if we have contact info (phone OR email) AND a person name
-        return (info.phoneNumber != nil || info.email != nil) && info.personName != nil
+        // Create contact if we have contact info (phone OR email)
+        // Person name is helpful but not required - we can use "Unknown Contact" as fallback
+        return info.phoneNumber != nil || info.email != nil
     }
 
     /// Should open maps based on extracted information
