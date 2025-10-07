@@ -917,6 +917,25 @@ final class DatabaseManager: ObservableObject {
         }
     }
 
+    func updateAIActionData(_ entryId: String, actionId: String, reverseData: [String: ActionData]) {
+        performOnQueue {
+            guard let index = self.entries.firstIndex(where: { $0.id == entryId }) else {
+                print("⚠️ Entry not found for AI action data update: \(entryId)")
+                return
+            }
+
+            var updatedEntry = self.entries[index]
+            updatedEntry.updateAIActionData(actionId, reverseData: reverseData)
+
+            // Update in database
+            self.saveEntryInternal(updatedEntry)
+
+            // Update in-memory array to trigger @Published notification
+            self.entries[index] = updatedEntry
+            print("✅ Updated AI action data in memory: \(entryId), action: \(actionId)")
+        }
+    }
+
     func setAIResearchForEntry(_ entryId: String, research: ResearchResults) {
         performOnQueue {
             guard let index = self.entries.firstIndex(where: { $0.id == entryId }) else {

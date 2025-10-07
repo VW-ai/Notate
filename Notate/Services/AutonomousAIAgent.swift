@@ -368,7 +368,7 @@ class AutonomousAIAgent: ObservableObject {
                 print("🔄 Attempting to execute \(action.type.displayName) action...")
                 print("   Action data: \(action.data.keys.joined(separator: ", "))")
 
-                let success = try await executeAction(action, using: toolService)
+                let success = try await executeAction(action, for: entryId, using: toolService)
 
                 if success {
                     databaseManager.updateAIActionStatus(entryId, actionId: action.id, status: .executed)
@@ -387,7 +387,7 @@ class AutonomousAIAgent: ObservableObject {
         }
     }
 
-    private func executeAction(_ action: AIAction, using toolService: ToolService) async throws -> Bool {
+    private func executeAction(_ action: AIAction, for entryId: String, using toolService: ToolService) async throws -> Bool {
         switch action.type {
         case .appleReminders:
             guard let title = action.data["title"]?.stringValue else {
@@ -396,7 +396,14 @@ class AutonomousAIAgent: ObservableObject {
             }
             let notes = action.data["notes"]?.stringValue
             print("   Creating reminder: \"\(title)\"")
-            let _ = try await toolService.createReminder(title: title, notes: notes)
+            let reminderId = try await toolService.createReminder(title: title, notes: notes)
+
+            // Store reminder ID for reversal
+            if !reminderId.isEmpty {
+                let reverseData: [String: ActionData] = ["reminderId": ActionData(reminderId)]
+                databaseManager.updateAIActionData(entryId, actionId: action.id, reverseData: reverseData)
+            }
+
             return true
 
         case .calendar:
@@ -410,9 +417,21 @@ class AutonomousAIAgent: ObservableObject {
 
             // Extract date/time from original content if possible
             let startDate = extractDateFromContent(originalContent) ?? Date()
+            let endDate = Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
             print("   Parsed date: \(startDate)")
 
-            let _ = try await toolService.createCalendarEvent(title: title, notes: notes, startDate: startDate)
+            let eventId = try await toolService.createCalendarEvent(title: title, notes: notes, startDate: startDate, endDate: endDate)
+
+            // Store event ID and dates for reversal and jump
+            if !eventId.isEmpty {
+                let reverseData: [String: ActionData] = [
+                    "eventId": ActionData(eventId),
+                    "startDate": ActionData(startDate),
+                    "endDate": ActionData(endDate)
+                ]
+                databaseManager.updateAIActionData(entryId, actionId: action.id, reverseData: reverseData)
+            }
+
             return true
 
         case .contacts:
@@ -422,17 +441,29 @@ class AutonomousAIAgent: ObservableObject {
             let nameParts = name.components(separatedBy: " ")
             let firstName = nameParts.first ?? name
             let lastName = nameParts.count > 1 ? nameParts.dropFirst().joined(separator: " ") : nil
-            let _ = try await toolService.createContact(
+            let contactId = try await toolService.createContact(
                 firstName: firstName,
                 lastName: lastName,
                 phoneNumber: phoneNumber,
                 email: email
             )
+
+            // Store contact ID for reversal
+            if !contactId.isEmpty {
+                let reverseData: [String: ActionData] = ["contactId": ActionData(contactId)]
+                databaseManager.updateAIActionData(entryId, actionId: action.id, reverseData: reverseData)
+            }
+
             return true
 
         case .maps:
             guard let location = action.data["location"]?.stringValue else { return false }
-            try await toolService.openInMaps(address: location)
+
+            // Store the query for jump functionality (don't auto-open)
+            let reverseData: [String: ActionData] = ["query": ActionData(location)]
+            databaseManager.updateAIActionData(entryId, actionId: action.id, reverseData: reverseData)
+
+            // Don't open maps automatically - only when user clicks jump
             return true
 
         case .webSearch:

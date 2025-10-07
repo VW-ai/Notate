@@ -249,6 +249,25 @@ extension Entry {
         }
     }
 
+    mutating func updateAIActionData(_ actionId: String, reverseData: [String: ActionData]) {
+        guard var currentMetadata = aiMetadata else { return }
+
+        if let index = currentMetadata.actions.firstIndex(where: { $0.id == actionId }) {
+            var updatedAction = currentMetadata.actions[index]
+            updatedAction = AIAction(
+                id: updatedAction.id,
+                type: updatedAction.type,
+                status: updatedAction.status,
+                data: updatedAction.data,
+                executedAt: updatedAction.executedAt,
+                reversible: updatedAction.reversible,
+                reverseData: reverseData
+            )
+            currentMetadata.actions[index] = updatedAction
+            self.aiMetadata = currentMetadata
+        }
+    }
+
     mutating func setAIResearch(_ research: ResearchResults) {
         var currentMetadata = aiMetadata ?? AIMetadata()
         currentMetadata.researchResults = research

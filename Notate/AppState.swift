@@ -21,7 +21,8 @@ final class AppState: ObservableObject {
     @Published var searchQuery: String = ""
     @Published var selectedFilter: FilterType = FilterType.none
     @Published var selectedEntry: Entry?
-    
+    @Published var processingEntryIds: Set<String> = []
+
     private var cancellables = Set<AnyCancellable>()
     
     enum TabSelection: String, CaseIterable {
@@ -234,8 +235,12 @@ final class AppState: ObservableObject {
     // MARK: - AI Processing
 
     func processEntryWithAI(_ entry: Entry) {
+        processingEntryIds.insert(entry.id)
         Task {
             await autonomousAIAgent.processEntry(entry)
+            await MainActor.run {
+                processingEntryIds.remove(entry.id)
+            }
         }
     }
 
@@ -246,8 +251,12 @@ final class AppState: ObservableObject {
     }
 
     func regenerateAIResearch(for entry: Entry) {
+        processingEntryIds.insert(entry.id)
         Task {
             await autonomousAIAgent.regenerateResearch(for: entry)
+            await MainActor.run {
+                processingEntryIds.remove(entry.id)
+            }
         }
     }
 
