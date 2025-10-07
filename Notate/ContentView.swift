@@ -249,9 +249,9 @@ struct ContentView: View {
                     TodoListView(todos: todos)
                 }
             case .thoughts:
-                let thoughts = filteredEntries.filter { $0.isThought }
+                let thoughts = filteredEntries.filter { $0.isPiece }
                 if thoughts.isEmpty {
-                    emptyThoughtsView
+                    emptyPiecesView
                 } else {
                     ThoughtCardView(thoughts: thoughts)
                 }
@@ -269,7 +269,7 @@ struct ContentView: View {
     private var allEntriesView: some View {
         List {
             let todos = appState.filteredEntries().filter { $0.isTodo }
-            let thoughts = appState.filteredEntries().filter { $0.isThought }
+            let thoughts = appState.filteredEntries().filter { $0.isPiece }
             
             if !todos.isEmpty {
                 Section("TODOs (\(todos.count))") {
@@ -297,7 +297,7 @@ struct ContentView: View {
             }
             
             if !thoughts.isEmpty {
-                Section("Thoughts (\(thoughts.count))") {
+                Section("Pieces (\(thoughts.count))") {
                     ForEach(thoughts) { thought in
                         ThoughtRowView(thought: thought)
                             .swipeActions(allowsFullSwipe: false) {
@@ -386,14 +386,14 @@ struct ContentView: View {
         .background(ModernDesignSystem.Colors.surfaceBackground)
     }
     
-    private var emptyThoughtsView: some View {
+    private var emptyPiecesView: some View {
         VStack(spacing: ModernDesignSystem.Spacing.large) {
             VStack(spacing: ModernDesignSystem.Spacing.medium) {
                 Image(systemName: "lightbulb")
                     .font(.system(size: 64, weight: .light))
                     .foregroundColor(ModernDesignSystem.Colors.warning.opacity(0.6))
 
-                Text("No thoughts found")
+                Text("No pieces found")
                     .font(ModernDesignSystem.Typography.title)
                     .fontWeight(.semibold)
                     .foregroundColor(ModernDesignSystem.Colors.primary)

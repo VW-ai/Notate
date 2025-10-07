@@ -27,7 +27,7 @@ final class AppState: ObservableObject {
     enum TabSelection: String, CaseIterable {
         case all = "All"
         case todos = "TODOs"
-        case thoughts = "Thoughts"
+        case thoughts = "Pieces"
         case archive = "Archive"
 
         var displayName: String {
@@ -110,15 +110,15 @@ final class AppState: ObservableObject {
             // TODOs tab: Only show OPEN todos (completed ones are auto-archived)
             filtered = filtered.filter { $0.isTodo && $0.status == EntryStatus.open }
         case .thoughts:
-            // Thoughts tab: Show all thoughts (they don't get archived)
-            filtered = filtered.filter { $0.isThought }
+            // Pieces tab: Show all pieces (they don't get archived)
+            filtered = filtered.filter { $0.isPiece }
         case .archive:
             // Archive tab: Show completed TODOs only
             filtered = filtered.filter { $0.isTodo && $0.status == EntryStatus.done }
         case .all:
-            // All tab: Show active TODOs + all thoughts (exclude completed TODOs)
+            // All tab: Show active TODOs + all pieces (exclude completed TODOs)
             filtered = filtered.filter { entry in
-                entry.isThought || (entry.isTodo && entry.status == EntryStatus.open)
+                entry.isPiece || (entry.isTodo && entry.status == EntryStatus.open)
             }
         }
 

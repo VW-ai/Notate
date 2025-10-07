@@ -14,6 +14,11 @@ class ToolService: ObservableObject {
     func requestCalendarPermissions() async -> Bool {
         print("📅 [ToolService] Requesting calendar permissions...")
 
+        // Ensure app is in foreground for permission dialog
+        await MainActor.run {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
         // Check current authorization status
         let status = EKEventStore.authorizationStatus(for: .event)
         print("📅 [ToolService] Current calendar auth status: \(status.rawValue)")
@@ -33,38 +38,66 @@ class ToolService: ObservableObject {
             return false
         case .notDetermined:
             print("📅 [ToolService] Calendar permission not determined, requesting...")
+            print("📅 [ToolService] Note: This should show a system permission dialog")
 
             // Try both the new method and fallback to the old method
             do {
                 // First try the new iOS 17+ method
                 if #available(macOS 14.0, *) {
+                    print("📅 [ToolService] Using macOS 14+ requestFullAccessToEvents API")
                     let granted = try await eventStore.requestFullAccessToEvents()
                     print("📅 [ToolService] Calendar permission request result (new API): \(granted)")
+
+                    // Check the auth status after the request
+                    let newStatus = EKEventStore.authorizationStatus(for: .event)
+                    print("📅 [ToolService] Auth status after new API request: \(newStatus.rawValue)")
+
                     if granted {
                         return true
                     }
                 }
 
                 // Fallback to the older method using continuation
+                print("📅 [ToolService] Falling back to legacy requestAccess API")
                 return await withCheckedContinuation { continuation in
                     eventStore.requestAccess(to: .event) { granted, error in
                         if let error = error {
                             print("❌ [ToolService] Calendar permission error (legacy API): \(error.localizedDescription)")
+                            print("❌ [ToolService] Error type: \(type(of: error))")
                         }
                         print("📅 [ToolService] Calendar permission request result (legacy API): \(granted)")
+
+                        // Check the auth status after the request
+                        let newStatus = EKEventStore.authorizationStatus(for: .event)
+                        print("📅 [ToolService] Auth status after legacy API request: \(newStatus.rawValue)")
+
                         continuation.resume(returning: granted)
                     }
                 }
             } catch {
                 print("❌ [ToolService] Calendar permission request error: \(error.localizedDescription)")
+                print("❌ [ToolService] Error type: \(type(of: error))")
 
                 // Final fallback to legacy API
+                print("📅 [ToolService] Using final fallback to legacy API")
                 return await withCheckedContinuation { continuation in
                     eventStore.requestAccess(to: .event) { granted, error in
                         if let error = error {
                             print("❌ [ToolService] Calendar permission error (final fallback): \(error.localizedDescription)")
                         }
                         print("📅 [ToolService] Calendar permission request result (final fallback): \(granted)")
+
+                        let newStatus = EKEventStore.authorizationStatus(for: .event)
+                        print("📅 [ToolService] Auth status after final fallback: \(newStatus.rawValue)")
+
+                        // If still denied after all attempts, show manual guidance
+                        if !granted && newStatus == .notDetermined {
+                            print("📅 [ToolService] Permission request may have been ignored - showing manual guidance")
+                            Task { @MainActor in
+                                self.showCalendarPermissionGuidance()
+                            }
+                        }
+
                         continuation.resume(returning: granted)
                     }
                 }
@@ -113,6 +146,11 @@ class ToolService: ObservableObject {
 
     func requestContactsPermissions() async -> Bool {
         print("👤 [ToolService] Requesting contacts permissions...")
+
+        // Ensure app is in foreground for permission dialog
+        await MainActor.run {
+            NSApp.activate(ignoringOtherApps: true)
+        }
 
         // Check current authorization status
         let status = CNContactStore.authorizationStatus(for: .contacts)
@@ -167,6 +205,62 @@ class ToolService: ObservableObject {
         @unknown default:
             print("⚠️ [ToolService] Unknown contacts auth status")
             return false
+        }
+    }
+
+    // MARK: - Permission Guidance
+
+    @MainActor
+    private func showCalendarPermissionGuidance() {
+        let alert = NSAlert()
+        alert.messageText = "Calendar Permission Required"
+        alert.informativeText = """
+        Notate needs permission to access Calendar to create events from your TODOs.
+
+        If the permission dialog didn't appear, please:
+        1. Open System Settings
+        2. Go to Privacy & Security > Calendar
+        3. Add Notate to the list of allowed applications
+
+        Then try the action again.
+        """
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "OK")
+        alert.alertStyle = .informational
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            // Open System Settings to Calendar privacy
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    @MainActor
+    private func showContactsPermissionGuidance() {
+        let alert = NSAlert()
+        alert.messageText = "Contacts Permission Required"
+        alert.informativeText = """
+        Notate needs permission to access Contacts to save contact information from your entries.
+
+        If the permission dialog didn't appear, please:
+        1. Open System Settings
+        2. Go to Privacy & Security > Contacts
+        3. Add Notate to the list of allowed applications
+
+        Then try the action again.
+        """
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "OK")
+        alert.alertStyle = .informational
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            // Open System Settings to Contacts privacy
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts") {
+                NSWorkspace.shared.open(url)
+            }
         }
     }
 

@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<!-- Calendar Access -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+
+	<!-- Contacts Access -->
+	<key>com.apple.security.personal-information.addressbook</key>
+	<true/>
+
+	<!-- Location Access -->
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
+
+	<!-- Network Access for AI API calls -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+
+	<!-- App Sandbox (disabled for broader system access) -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+
+	<!-- Accessibility for keyboard capture -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
 </plist>
