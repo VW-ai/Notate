@@ -9,18 +9,16 @@ struct PromptManager {
         let contextInfo = buildContextInfo(userContext)
 
         return """
-        Research this TODO and create a helpful markdown guide: "\(content)"
+        You are Claude 4.5 embedded in Notate. Analyze this TODO: "\(content)"
 
-        Provide practical information including:
-        - Nearby locations if relevant\(contextInfo.location)
-        - Best practices or tips
-        - Tools, apps, or resources that could help
-        - Time-saving strategies
-        - Cost estimates if applicable
+        Produce a tight markdown briefing (≈180 words max) that:
+        - Surfaces the core objective, blockers, and timing signals\(contextInfo.timeContext)
+        - Suggests high-leverage next steps or quick wins with clear ownership
+        - Recommends tools, venues, or contacts that accelerate progress\(contextInfo.location)
+        - Highlights risks, costs, or dependencies only if they influence action
 
-        Format as markdown with clear sections. Be concise but thorough.
-        Limit to 300 words maximum.
-        Focus on actionable advice that helps complete the task efficiently.
+        Structure freely, but begin with a "Snapshot" bullet list (3 bullet max) before deeper guidance.
+        Keep sentences crisp, avoid filler, and tailor advice directly to the captured text.
         """
     }
 
@@ -28,18 +26,15 @@ struct PromptManager {
         let contextInfo = buildContextInfo(userContext)
 
         return """
-        Research this topic and create a helpful markdown summary: "\(content)"
+        You are Claude 4.5, researching this entry for Notate: "\(content)"
 
-        Provide relevant information including:
-        - Context or background information
-        - Related concepts or connections
-        - Useful resources for learning more
-        - Practical applications
-        - Current trends or developments (if applicable)
+        Craft an insight-rich markdown summary (target 200 words or less) that:
+        - Explains why the topic matters right now, referencing context when relevant\(contextInfo.location)\(contextInfo.timeContext)
+        - Surfaces standout insights, frameworks, or examples useful to the user
+        - Points to standout resources or experts worth a follow-up
+        - Suggests one or two concrete next steps or experiments
 
-        Format as markdown with clear sections. Be informative and well-organized.
-        Limit to 300 words maximum.
-        Focus on educational value and practical insights.
+        Use flexible headings that best fit the material. Lead with a "Key Takeaways" section (3 concise bullets) before elaborating.
         """
     }
 
@@ -47,23 +42,17 @@ struct PromptManager {
 
     static func contentClassificationPrompt(content: String, userContext: UserContext? = nil) -> String {
         return """
-        Analyze this user input for extractable data and actionable insights:
+        Act as Claude 4.5 extracting structured data for Notate.
 
         Input: "\(content)"
 
-        Identify any of the following:
-        1. Phone numbers (any format)
-        2. Email addresses
-        3. Dates or times (relative or absolute)
-        4. Locations or addresses
-        5. Person names
-        6. URLs or web links
-        7. Task urgency indicators
-        8. Priority keywords
+        Capture every actionable element (phones, emails, names, companies, dates/times, locations, URLs, commitments, follow-ups, urgency cues).
+        Normalize dates/times to ISO 8601 when possible and resolve relative phrases conservatively.
+        Provide short reasoning for classification via the confidence fields.
 
-        Return a JSON object with:
+        Return strict JSON in this shape:
         {
-          "detected_types": ["phone_number", "date_time", ...],
+          "detected_types": ["phone_number", ...],
           "extracted_data": {
             "phone": "555-123-4567",
             "person_name": "John Doe",
@@ -73,7 +62,7 @@ struct PromptManager {
           "reasoning": "Brief explanation of what was detected"
         }
 
-        Only include fields that are actually detected. Be conservative with confidence scores.
+        Omit keys you cannot support. Keep the JSON human-checkable and machine-parseable.
         """
     }
 
@@ -133,33 +122,15 @@ struct PromptManager {
 
     static func webSearchPrompt(query: String) -> String {
         return """
-        I need to search for information about: "\(query)"
+        You are Claude 4.5 with full research latitude. Investigate: "\(query)"
 
-        Please provide a comprehensive research summary in markdown format that includes:
+        Deliver a focused markdown brief (≤220 words) that:
+        - Leads with a "Snapshot" section (3 punchy bullets capturing the most valuable findings)
+        - Highlights the most credible insights, emerging angles, or contrarian signals
+        - Mentions notable sources inline (site or organization names suffice)
+        - Suggests practical follow-up moves tailored to someone acting on this query
 
-        ## Key Information
-        - Main facts and details about the topic
-        - Important considerations or tips
-        - Current trends or developments
-
-        ## Resources and Sources
-        - Relevant websites or services
-        - Where to find more information
-        - Official sources or documentation
-
-        ## Practical Guidance
-        - Actionable recommendations
-        - Best practices to follow
-        - Common mistakes to avoid
-
-        ## Next Steps
-        - Specific actions to take
-        - Things to consider or investigate further
-        - Who to contact for additional help
-
-        Format the response as structured markdown with clear sections and bullet points.
-        Focus on providing practical, actionable information that helps the user move forward.
-        Limit to 400 words maximum while being comprehensive.
+        Shape the remaining sections around what the topic truly needs—no rigid template. Use tables or short lists only when they sharpen clarity.
         """
     }
 
