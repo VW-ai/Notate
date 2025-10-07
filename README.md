@@ -2,6 +2,32 @@
 
 A lightweight, cross-app capture tool that listens for custom triggers, instantly records snippets (TODOs or Thoughts/Ideas), clears the text from the current input box to avoid accidental sending, and persists everything to a searchable database.
 
+## Motivation
+
+We take notes everywhere—macOS Stickies, Apple Notes, WeChat file transfer chats, even random comment boxes. Sometimes it is an urgent errand, sometimes a phone number, often a stray idea. Everything ends up messy and scattered, and the important pieces get lost because we forget to review them later.
+
+## Product Overview
+
+### Vision
+
+Notate is a simple, AI-native capture companion that lets us keep typing in any app while the system quietly organizes those snippets into a single, reviewable home.
+
+### Capture Flow
+
+Whenever typing starts with a unique identifier and ends with the same identifier—`!! buy milk !!`, `AAA call mom AAA`, `/// draft blog`—Notate treats the enclosed text as a capture. The default delimiter is `!!`, and you can swap in anything that fits your muscle memory. The capture engine scoops the content, clears it from the source field to prevent accidental sends, tags it with metadata (app, trigger, time), and stores it in the encrypted SQLite database.
+
+### Why AI-Native
+
+Claude Sonnet 4.5 handles the heavy lifting once an entry lands: structured extraction for contacts, times, and action intents; research briefs that add context; and autonomous tool calls that spawn reminders, calendar events, or map lookups when the data calls for it.
+
+## Demo
+
+<p align="center">
+  <img src="DEMO/demo1.png" alt="Notate inbox view" width="85%">
+  <img src="DEMO/demo2.png" alt="AI research brief" width="85%">
+  <img src="DEMO/demo3.png" alt="Trigger settings" width="85%">
+</p>
+
 ## Features Implemented
 
 ### ✅ 1. Customizable Start Trigger
