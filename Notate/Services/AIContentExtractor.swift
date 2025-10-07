@@ -26,22 +26,21 @@ class AIContentExtractor {
         }
 
         let prompt = """
-        Extract all possible information from this user input. Handle typos, informal language, and context.
-        Look for ANY of these information types that might be present:
+        You are Claude 4.5 extracting structured data for Notate.
 
         Input: "\(text)"
 
-        Extract if present:
-        1. Phone numbers (any format, even partial)
+        Capture every actionable detail, even when phrased informally or with typos:
+        1. Phone numbers (any format, partials included)
         2. Email addresses
-        3. Person names (including nicknames, informal references)
-        4. Time/date information (normalize informal expressions like "tmrw", "tues", "2ish")
-        5. Location information (addresses, place names, even vague like "coffee place")
-        6. Action intentions (call, email, meet, remind, visit, etc.)
-        7. URLs or websites
-        8. Any other structured data
+        3. People names or references (nicknames, initials)
+        4. Date/time information (normalize to ISO 8601 when possible; resolve relative terms cautiously)
+        5. Location hints (addresses, venues, neighborhoods)
+        6. Action intents (call, follow up, schedule, buy, research, etc.)
+        7. URLs or digital resources
+        8. Any other structured facts that aid automation
 
-        Respond ONLY in JSON format:
+        Return strict JSON:
         {
             "phoneNumber": "string or null",
             "email": "string or null",
@@ -53,7 +52,7 @@ class AIContentExtractor {
             "otherData": "any other structured info or null"
         }
 
-        If nothing is found for a field, use null. Be generous in extraction - if there's any possibility, include it.
+        Use null when evidence is weak. Do not add extra keys. Ensure the JSON parses without modification.
         """
 
         do {
@@ -217,4 +216,3 @@ struct CachedExtraction {
         Date().timeIntervalSince(timestamp) > 300
     }
 }
-
