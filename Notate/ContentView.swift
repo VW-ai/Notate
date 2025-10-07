@@ -6,44 +6,35 @@ struct ContentView: View {
     @State private var showingSettings = false
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header with search and filter
-                headerView
+        VStack(spacing: 0) {
+            // Custom Toolbar
+            customToolbar
 
-                // Tab selection
-                tabSelectionView
+            // Main Content
+            HStack(spacing: 0) {
+                // Left Panel - Entry List
+                VStack(spacing: 0) {
+                    // Header with search and filter
+                    headerView
 
-                // Content area
-                contentView
-                    .background(ModernDesignSystem.Colors.surfaceBackground)
-            }
-            .background(ModernDesignSystem.Colors.surfaceBackground)
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: ModernDesignSystem.Spacing.small) {
-                        Text("Notate")
-                            .font(ModernDesignSystem.Typography.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(ModernDesignSystem.Colors.primary)
+                    // Tab selection
+                    tabSelectionView
 
-                        Image(systemName: "brain.head.profile")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(ModernDesignSystem.Colors.accent)
-                    }
+                    // Content area
+                    contentView
+                        .background(ModernDesignSystem.Colors.surfaceBackground)
                 }
+                .frame(minWidth: 400, maxWidth: 500)
+                .background(ModernDesignSystem.Colors.surfaceBackground)
 
-                ToolbarItem(placement: .primaryAction) {
-                    ModernButton(
-                        title: "Settings",
-                        icon: "gear",
-                        style: .ghost,
-                        size: .medium
-                    ) {
-                        showingSettings = true
-                    }
-                }
+                // Divider
+                Rectangle()
+                    .fill(ModernDesignSystem.Colors.border)
+                    .frame(width: 1)
+
+                // Right Panel - Detail View
+                EntryDetailView(entry: appState.selectedEntry)
+                    .environmentObject(appState)
             }
         }
         .sheet(isPresented: $showingSettings) {
@@ -64,7 +55,45 @@ struct ContentView: View {
             }
         }
     }
-    
+
+    // Custom Toolbar
+    private var customToolbar: some View {
+        HStack {
+            // Left side - App title and icon
+            HStack(spacing: ModernDesignSystem.Spacing.small) {
+                Text("Notate")
+                    .font(ModernDesignSystem.Typography.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(ModernDesignSystem.Colors.primary)
+
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(ModernDesignSystem.Colors.accent)
+            }
+
+            Spacer()
+
+            // Right side - Settings button
+            ModernButton(
+                title: "Settings",
+                icon: "gear",
+                style: .ghost,
+                size: .medium
+            ) {
+                showingSettings = true
+            }
+        }
+        .padding(.horizontal, ModernDesignSystem.Spacing.large)
+        .padding(.vertical, ModernDesignSystem.Spacing.medium)
+        .background(ModernDesignSystem.Colors.windowBackground)
+        .overlay(
+            Rectangle()
+                .fill(ModernDesignSystem.Colors.border)
+                .frame(height: 1),
+            alignment: .bottom
+        )
+    }
+
     private var headerView: some View {
         ModernCard(
             padding: ModernDesignSystem.Spacing.regular,

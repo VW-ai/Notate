@@ -12,6 +12,7 @@ final class AppState: ObservableObject {
     let aiService = AIService()
     lazy var contentExtractor = AIContentExtractor(aiService: aiService)
     lazy var autonomousAIAgent = AutonomousAIAgent(aiService: aiService, databaseManager: databaseManager)
+    lazy var permissionManager = PermissionManager()
     
     @Published var lastCapturedPreview: String = ""
     @Published var lastCaptureResult: CaptureResult?
@@ -19,6 +20,7 @@ final class AppState: ObservableObject {
     @Published var selectedTab: TabSelection = TabSelection.all
     @Published var searchQuery: String = ""
     @Published var selectedFilter: FilterType = FilterType.none
+    @Published var selectedEntry: Entry?
     
     private var cancellables = Set<AnyCancellable>()
     

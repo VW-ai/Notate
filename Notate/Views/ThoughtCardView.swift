@@ -26,15 +26,12 @@ struct ThoughtCardView: View {
 struct ModernThoughtCard: View {
     let thought: Entry
     @EnvironmentObject var appState: AppState
-    @State private var isExpanded = false
-    @State private var isPinned = false
-    @State private var showingActions = false
 
     var body: some View {
         ModernCard(
             padding: ModernDesignSystem.Spacing.regular,
             cornerRadius: ModernDesignSystem.CornerRadius.medium,
-            shadowIntensity: isPinned ? ModernDesignSystem.Shadow.medium : ModernDesignSystem.Shadow.light
+            shadowIntensity: ModernDesignSystem.Shadow.light
         ) {
             VStack(spacing: ModernDesignSystem.Spacing.medium) {
                 // Header row
@@ -55,7 +52,7 @@ struct ModernThoughtCard: View {
                         Text(thought.content)
                             .font(ModernDesignSystem.Typography.body)
                             .foregroundColor(ModernDesignSystem.Colors.primary)
-                            .lineLimit(isExpanded ? nil : 3)
+                            .lineLimit(3)
                             .multilineTextAlignment(.leading)
 
                         // Quick metadata
@@ -64,28 +61,6 @@ struct ModernThoughtCard: View {
 
                     Spacer()
 
-                    // Controls
-                    VStack(spacing: ModernDesignSystem.Spacing.tiny) {
-                        // Pin button
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isPinned.toggle()
-                            }
-                        }) {
-                            Image(systemName: isPinned ? "pin.fill" : "pin")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(isPinned ? ModernDesignSystem.Colors.accent : ModernDesignSystem.Colors.secondary)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-
-                        // Actions menu
-                        Button(action: { showingActions.toggle() }) {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(ModernDesignSystem.Colors.secondary)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
                 }
 
                 // Tags section
@@ -93,31 +68,28 @@ struct ModernThoughtCard: View {
                     tagsSection
                 }
 
-                // AI Suggestions section
-                if thought.hasAIProcessing {
-                    AISuggestionsInlineView(entry: thought)
-                }
-
-                // Expanded metadata
-                if isExpanded {
-                    expandedMetadata
-                }
-
-                // Action buttons
-                if showingActions {
-                    actionButtons
+                // Selection indicator
+                if appState.selectedEntry?.id == thought.id {
+                    HStack {
+                        Rectangle()
+                            .fill(ModernDesignSystem.Colors.accent)
+                            .frame(height: 2)
+                        Spacer()
+                    }
                 }
             }
         }
-        .overlay(
+        .background(
             RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.medium)
-                .stroke(isPinned ? ModernDesignSystem.Colors.accent.opacity(0.3) : Color.clear, lineWidth: 2)
+                .stroke(ModernDesignSystem.Colors.accent, lineWidth: isSelected ? 2 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.medium)
+                        .fill(isSelected ? ModernDesignSystem.Colors.accent.opacity(0.05) : Color.clear)
+                )
         )
-        .scaleEffect(isPinned ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isPinned)
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
-                isExpanded.toggle()
+                appState.selectedEntry = thought
             }
         }
     }
@@ -166,57 +138,8 @@ struct ModernThoughtCard: View {
         .padding(.top, ModernDesignSystem.Spacing.small)
     }
 
-    private var expandedMetadata: some View {
-        VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
-            HStack {
-                Image(systemName: "keyboard")
-                    .font(.system(size: 12))
-                    .foregroundColor(ModernDesignSystem.Colors.secondary)
-
-                Text("Captured with: \(thought.triggerUsed)")
-                    .font(ModernDesignSystem.Typography.small)
-                    .foregroundColor(ModernDesignSystem.Colors.secondary)
-            }
-
-            if let sourceApp = thought.sourceApp {
-                HStack {
-                    Image(systemName: "app")
-                        .font(.system(size: 12))
-                        .foregroundColor(ModernDesignSystem.Colors.secondary)
-
-                    Text("From: \(sourceApp)")
-                        .font(ModernDesignSystem.Typography.small)
-                        .foregroundColor(ModernDesignSystem.Colors.secondary)
-                }
-            }
-        }
-        .padding(.top, ModernDesignSystem.Spacing.small)
-    }
-
-    private var actionButtons: some View {
-        HStack(spacing: ModernDesignSystem.Spacing.small) {
-            ModernButton(
-                title: "Convert to TODO",
-                icon: "arrow.triangle.2.circlepath",
-                style: .secondary,
-                size: .small
-            ) {
-                appState.convertThoughtToTodo(thought)
-                showingActions = false
-            }
-
-            Spacer()
-
-            ModernButton(
-                title: "Delete",
-                icon: "trash",
-                style: .destructive,
-                size: .small
-            ) {
-                appState.deleteEntry(thought)
-            }
-        }
-        .padding(.top, ModernDesignSystem.Spacing.small)
+    private var isSelected: Bool {
+        appState.selectedEntry?.id == thought.id
     }
 }
 
@@ -246,7 +169,6 @@ struct ModernTagBadge: View {
 struct ThoughtRowView: View {
     let thought: Entry
     @EnvironmentObject var appState: AppState
-    @State private var isExpanded = false
 
     var body: some View {
         ModernCard(
@@ -263,7 +185,7 @@ struct ThoughtRowView: View {
                         Text(thought.content)
                             .font(ModernDesignSystem.Typography.body)
                             .foregroundColor(ModernDesignSystem.Colors.primary)
-                            .lineLimit(isExpanded ? nil : 2)
+                            .lineLimit(2)
 
                         HStack {
                             if !thought.tags.isEmpty {
@@ -287,57 +209,25 @@ struct ThoughtRowView: View {
                     }
 
                     Spacer()
-
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isExpanded.toggle()
-                        }
-                    }) {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .foregroundColor(ModernDesignSystem.Colors.secondary)
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-
-                if isExpanded {
-                    VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
-                        Rectangle()
-                            .fill(ModernDesignSystem.Colors.border)
-                            .frame(height: 1)
-
-                        HStack {
-                            Text("Trigger: \(thought.triggerUsed)")
-                                .font(ModernDesignSystem.Typography.small)
-                                .foregroundColor(ModernDesignSystem.Colors.secondary)
-
-                            if let sourceApp = thought.sourceApp {
-                                Text("• \(sourceApp)")
-                                    .font(ModernDesignSystem.Typography.small)
-                                    .foregroundColor(ModernDesignSystem.Colors.secondary)
-                            }
-
-                            Spacer()
-
-                            ModernButton(
-                                title: "Convert",
-                                style: .secondary,
-                                size: .small
-                            ) {
-                                appState.convertThoughtToTodo(thought)
-                            }
-
-                            ModernButton(
-                                title: "Delete",
-                                style: .destructive,
-                                size: .small
-                            ) {
-                                appState.deleteEntry(thought)
-                            }
-                        }
-                    }
                 }
             }
         }
+        .background(
+            RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                .stroke(ModernDesignSystem.Colors.accent, lineWidth: isSelected ? 2 : 0)
+                .background(
+                    RoundedRectangle(cornerRadius: ModernDesignSystem.CornerRadius.small)
+                        .fill(isSelected ? ModernDesignSystem.Colors.accent.opacity(0.05) : Color.clear)
+                )
+        )
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.selectedEntry = thought
+            }
+        }
+    }
+
+    private var isSelected: Bool {
+        appState.selectedEntry?.id == thought.id
     }
 }

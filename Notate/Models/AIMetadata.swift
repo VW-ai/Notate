@@ -127,6 +127,18 @@ struct ActionData: Codable {
             return String(int)
         }
     }
+
+    var dateValue: Date? {
+        switch value {
+        case .date(let date):
+            return date
+        case .string(let str):
+            // Try to parse ISO string to date
+            return ISO8601DateFormatter().date(from: str)
+        default:
+            return nil
+        }
+    }
 }
 
 enum ActionValue: Codable {

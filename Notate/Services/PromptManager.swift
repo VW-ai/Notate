@@ -131,6 +131,38 @@ struct PromptManager {
         """
     }
 
+    static func webSearchPrompt(query: String) -> String {
+        return """
+        I need to search for information about: "\(query)"
+
+        Please provide a comprehensive research summary in markdown format that includes:
+
+        ## Key Information
+        - Main facts and details about the topic
+        - Important considerations or tips
+        - Current trends or developments
+
+        ## Resources and Sources
+        - Relevant websites or services
+        - Where to find more information
+        - Official sources or documentation
+
+        ## Practical Guidance
+        - Actionable recommendations
+        - Best practices to follow
+        - Common mistakes to avoid
+
+        ## Next Steps
+        - Specific actions to take
+        - Things to consider or investigate further
+        - Who to contact for additional help
+
+        Format the response as structured markdown with clear sections and bullet points.
+        Focus on providing practical, actionable information that helps the user move forward.
+        Limit to 400 words maximum while being comprehensive.
+        """
+    }
+
     // MARK: - Enhanced Research Prompts
 
     static func contextualResearchPrompt(content: String, detectedType: ContentType, userContext: UserContext? = nil) -> String {
