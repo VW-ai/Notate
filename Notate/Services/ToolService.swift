@@ -33,13 +33,41 @@ class ToolService: ObservableObject {
             return false
         case .notDetermined:
             print("📅 [ToolService] Calendar permission not determined, requesting...")
+
+            // Try both the new method and fallback to the old method
             do {
-                let granted = try await eventStore.requestFullAccessToEvents()
-                print("📅 [ToolService] Calendar permission request result: \(granted)")
-                return granted
+                // First try the new iOS 17+ method
+                if #available(macOS 14.0, *) {
+                    let granted = try await eventStore.requestFullAccessToEvents()
+                    print("📅 [ToolService] Calendar permission request result (new API): \(granted)")
+                    if granted {
+                        return true
+                    }
+                }
+
+                // Fallback to the older method using continuation
+                return await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .event) { granted, error in
+                        if let error = error {
+                            print("❌ [ToolService] Calendar permission error (legacy API): \(error.localizedDescription)")
+                        }
+                        print("📅 [ToolService] Calendar permission request result (legacy API): \(granted)")
+                        continuation.resume(returning: granted)
+                    }
+                }
             } catch {
                 print("❌ [ToolService] Calendar permission request error: \(error.localizedDescription)")
-                return false
+
+                // Final fallback to legacy API
+                return await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .event) { granted, error in
+                        if let error = error {
+                            print("❌ [ToolService] Calendar permission error (final fallback): \(error.localizedDescription)")
+                        }
+                        print("📅 [ToolService] Calendar permission request result (final fallback): \(granted)")
+                        continuation.resume(returning: granted)
+                    }
+                }
             }
         @unknown default:
             print("⚠️ [ToolService] Unknown calendar auth status")
@@ -102,13 +130,38 @@ class ToolService: ObservableObject {
             return false
         case .notDetermined:
             print("👤 [ToolService] Contacts permission not determined, requesting...")
-            return await withCheckedContinuation { continuation in
-                contactStore.requestAccess(for: .contacts) { granted, error in
-                    if let error = error {
-                        print("❌ [ToolService] Contacts permission error: \(error.localizedDescription)")
+
+            // Use modern async/await approach if available
+            do {
+                if #available(macOS 12.0, *) {
+                    try await contactStore.requestAccess(for: .contacts)
+                    // If we get here without error, permission was granted
+                    print("👤 [ToolService] Contacts permission granted (new async API)")
+                    return true
+                } else {
+                    // Fallback for older macOS versions
+                    return await withCheckedContinuation { continuation in
+                        contactStore.requestAccess(for: .contacts) { granted, error in
+                            if let error = error {
+                                print("❌ [ToolService] Contacts permission error: \(error.localizedDescription)")
+                            }
+                            print("👤 [ToolService] Contacts permission request result: \(granted)")
+                            continuation.resume(returning: granted)
+                        }
                     }
-                    print("👤 [ToolService] Contacts permission request result: \(granted)")
-                    continuation.resume(returning: granted)
+                }
+            } catch {
+                print("❌ [ToolService] Contacts permission error (async API): \(error.localizedDescription)")
+
+                // Fallback to legacy callback-based API
+                return await withCheckedContinuation { continuation in
+                    contactStore.requestAccess(for: .contacts) { granted, error in
+                        if let error = error {
+                            print("❌ [ToolService] Contacts permission error (fallback): \(error.localizedDescription)")
+                        }
+                        print("👤 [ToolService] Contacts permission request result (fallback): \(granted)")
+                        continuation.resume(returning: granted)
+                    }
                 }
             }
         @unknown default:

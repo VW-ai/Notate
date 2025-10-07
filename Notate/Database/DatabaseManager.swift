@@ -872,6 +872,10 @@ final class DatabaseManager: ObservableObject {
 
             // Update in database
             self.saveEntryInternal(updatedEntry)
+
+            // Update in-memory array to trigger @Published notification
+            self.entries[index] = updatedEntry
+            print("✅ Updated entry AI metadata in memory for: \(entryId)")
         }
     }
 
@@ -887,6 +891,10 @@ final class DatabaseManager: ObservableObject {
 
             // Update in database
             self.saveEntryInternal(updatedEntry)
+
+            // Update in-memory array to trigger @Published notification
+            self.entries[index] = updatedEntry
+            print("✅ Added AI action to entry in memory: \(entryId)")
         }
     }
 
@@ -902,6 +910,10 @@ final class DatabaseManager: ObservableObject {
 
             // Update in database
             self.saveEntryInternal(updatedEntry)
+
+            // Update in-memory array to trigger @Published notification
+            self.entries[index] = updatedEntry
+            print("✅ Updated AI action status in memory: \(entryId), action: \(actionId), status: \(status)")
         }
     }
 
@@ -917,6 +929,10 @@ final class DatabaseManager: ObservableObject {
 
             // Update in database
             self.saveEntryInternal(updatedEntry)
+
+            // Update in-memory array to trigger @Published notification
+            self.entries[index] = updatedEntry
+            print("✅ Updated AI research in memory for: \(entryId)")
         }
     }
 
