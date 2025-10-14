@@ -277,15 +277,16 @@ final class CaptureEngine: ObservableObject {
     
     private func clearCurrentInput() {
         // Clear the input field by sending backspace events
-        // Fixed: Proper memory management for CGEvent objects and weak self capture
+        // Capture the count before async dispatch to avoid race condition
 
         guard !captureText.isEmpty else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            guard let self = self else { return }
+        // Capture values before they get reset
+        let characterCount = captureText.count + currentTrigger.count
 
-            let characterCount = self.captureText.count + self.currentTrigger.count
+        print("🧹 Auto-clearing \(characterCount) characters from input...")
 
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Create event source once and reuse for better performance
             let eventSource = CGEventSource(stateID: .hidSystemState)
 
@@ -305,6 +306,8 @@ final class CaptureEngine: ObservableObject {
                 // Small delay between key events for better reliability
                 usleep(1000) // 1ms delay
             }
+
+            print("✅ Auto-clear completed")
         }
     }
 }
