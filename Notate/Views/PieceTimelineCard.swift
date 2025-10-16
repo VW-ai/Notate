@@ -25,7 +25,7 @@ struct PieceTimelineCard: View {
                 Text(piece.content)
                     .font(.notateBody)
                     .foregroundColor(.primary)
-                    .lineLimit(3)
+                    .lineLimit(4)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -46,7 +46,8 @@ struct PieceTimelineCard: View {
                     aiActionIcons
                 }
             }
-            .padding(NotateDesignSystem.Spacing.space3)
+            .padding(.vertical, NotateDesignSystem.Spacing.space4)
+            .padding(.horizontal, NotateDesignSystem.Spacing.space3)
             .background(
                 RoundedRectangle(cornerRadius: NotateDesignSystem.CornerRadius.medium)
                     .fill(Color(hex: "#7CB342").opacity(0.2))

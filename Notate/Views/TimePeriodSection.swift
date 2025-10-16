@@ -309,9 +309,9 @@ struct StretchableEventCard: View {
                 .frame(width: 3)
 
             // Middle: Event content
-            VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space2) {
+            VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space3) {
                 HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(event.title)
                             .font(.notateBodyMedium)
                             .foregroundColor(.primary)
@@ -340,7 +340,7 @@ struct StretchableEventCard: View {
 
                 // Location and attendees
                 if event.location != nil || !event.attendees.isEmpty {
-                    VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space2) {
+                    VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space3) {
                         if let location = event.location {
                             HStack(alignment: .top, spacing: 6) {
                                 Image(systemName: "mappin.circle.fill")
@@ -374,7 +374,8 @@ struct StretchableEventCard: View {
                 }
             }
         }
-        .padding(NotateDesignSystem.Spacing.space3)
+        .padding(.vertical, NotateDesignSystem.Spacing.space5)
+        .padding(.horizontal, NotateDesignSystem.Spacing.space3)
         .background(
             RoundedRectangle(cornerRadius: NotateDesignSystem.CornerRadius.medium)
                 .fill(event.isAIGenerated ? Color.notateNeuralBlue.opacity(0.15) : Color(hex: "#8B7355").opacity(0.2))
