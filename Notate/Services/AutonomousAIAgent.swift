@@ -114,7 +114,10 @@ class AutonomousAIAgent: ObservableObject {
             print("🤖 [Agent] Should create calendar event: YES")
             if let calendarAction = await createCalendarAction(from: entry.content, extractedInfo: extractedInfo) {
                 print("🤖 [Agent] Calendar action created: \(calendarAction.id)")
+                print("🤖 [Agent] Total actions before append: \(actions.count)")
                 actions.append(calendarAction)
+                print("🤖 [Agent] Total actions after append: \(actions.count)")
+                print("🤖 [Agent] All action types: \(actions.map { $0.type.displayName })")
             }
         } else {
             print("🤖 [Agent] Should create calendar event: NO (timeInfo=\(extractedInfo.timeInfo ?? "nil"), actionIntent=\(extractedInfo.actionIntent ?? "nil"))")
@@ -364,6 +367,12 @@ class AutonomousAIAgent: ObservableObject {
 
     private func executeActionsWithToolService(_ actions: [AIAction], for entryId: String, using toolService: ToolService) async {
         for action in actions {
+            // Skip if already executed or reversed
+            if action.status == .executed || action.status == .reversed {
+                print("⏭️ Skipping \(action.type.displayName) action - already \(action.status.rawValue)")
+                continue
+            }
+
             do {
                 print("🔄 Attempting to execute \(action.type.displayName) action...")
                 print("   Action data: \(action.data.keys.joined(separator: ", "))")

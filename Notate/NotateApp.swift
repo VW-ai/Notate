@@ -4,6 +4,7 @@ import AppKit
 @main
 struct NotateApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var notificationService = NotificationService.shared
     @State private var hasAccessibilityPermission = false
     @State private var permissionCheckTimer: Timer?
 
@@ -12,6 +13,7 @@ struct NotateApp: App {
             if hasAccessibilityPermission {
                 ContentView()
                     .environmentObject(appState)
+                    .environmentObject(notificationService)
                     .onAppear {
                         appState.engine.start()
                         startPermissionMonitoring()

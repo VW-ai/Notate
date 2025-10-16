@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     @Published var searchQuery: String = ""
     @Published var selectedFilter: FilterType = FilterType.none
     @Published var selectedEntry: Entry?
+    @Published var selectedEvent: CalendarEvent?
     @Published var processingEntryIds: Set<String> = []
 
     private var cancellables = Set<AnyCancellable>()
@@ -58,7 +59,11 @@ final class AppState: ObservableObject {
         // Bind database entries to published property
         databaseManager.$entries
             .receive(on: DispatchQueue.main)
-            .assign(to: \.entries, on: self)
+            .sink { [weak self] newEntries in
+                guard let self = self else { return }
+                print("📥 AppState received \(newEntries.count) entries from database")
+                self.entries = newEntries
+            }
             .store(in: &cancellables)
         
         // Listen for capture results

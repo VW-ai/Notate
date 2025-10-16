@@ -419,16 +419,7 @@ struct PriorityIndicator: View {
 }
 
 // MARK: - Extensions for Priority
-
-extension EntryPriority {
-    var level: Int {
-        switch self {
-        case .low: return 1
-        case .medium: return 2
-        case .high: return 3
-        }
-    }
-}
+// Note: Priority level extension moved to NotateEntryCard.swift to avoid duplication
 
 // MARK: - View Extensions
 

@@ -2,61 +2,111 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
-    @State private var showToast = false
-    @State private var showingSettings = false
+    @State private var selectedTab: AppTab = .timeline
+
+    enum AppTab {
+        case timeline
+        case insights
+        case settings
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Custom Toolbar
-            customToolbar
-
-            // Main Content
-            HStack(spacing: 0) {
-                // Left Panel - Entry List
-                VStack(spacing: 0) {
-                    // Header with search and filter
-                    headerView
-
-                    // Tab selection
-                    tabSelectionView
-
-                    // Content area
-                    contentView
-                        .background(ModernDesignSystem.Colors.surfaceBackground)
+            // Main content area
+            Group {
+                switch selectedTab {
+                case .timeline:
+                    TimelineView()
+                        .environmentObject(appState)
+                case .insights:
+                    InsightsView()
+                case .settings:
+                    SettingsView()
+                        .environmentObject(appState)
                 }
-                .frame(minWidth: 400, maxWidth: 500)
-                .background(ModernDesignSystem.Colors.surfaceBackground)
-
-                // Divider
-                Rectangle()
-                    .fill(ModernDesignSystem.Colors.border)
-                    .frame(width: 1)
-
-                // Right Panel - Detail View
-                EntryDetailView(entry: appState.selectedEntry)
-                    .environmentObject(appState)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Bottom navigation bar
+            bottomNavigationBar
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-                .environmentObject(appState)
-        }
+        .background(Color(hex: "#1C1C1E"))
+        .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: .notateDidFinishCapture)) { note in
             if let result = note.object as? CaptureResult {
-                withAnimation { showToast = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    withAnimation { showToast = false }
+                // Use new notification service for toast
+                if let entry = appState.entries.first(where: { $0.content == result.content }) {
+                    NotificationService.shared.showCapture(entry: entry)
                 }
             }
         }
-        .overlay(alignment: .bottom) {
-            if showToast, let result = appState.lastCaptureResult {
-                captureToastView(result: result)
-            }
+        .overlay(alignment: .bottomLeading) {
+            ToastOverlay()
+                .padding(.leading, NotateDesignSystem.Spacing.space5)
+                .padding(.bottom, 80) // Above bottom nav
         }
     }
 
-    // Custom Toolbar
+    // MARK: - Bottom Navigation Bar
+
+    private var bottomNavigationBar: some View {
+        HStack(spacing: 0) {
+            // Timeline tab
+            bottomNavButton(
+                icon: "calendar",
+                title: "Timeline",
+                tab: .timeline
+            )
+
+            // Insights tab
+            bottomNavButton(
+                icon: "chart.bar.fill",
+                title: "Insights",
+                tab: .insights
+            )
+
+            // Settings tab
+            bottomNavButton(
+                icon: "gear",
+                title: "Settings",
+                tab: .settings
+            )
+        }
+        .padding(.vertical, 12)
+        .background(Color(hex: "#2C2C2E"))
+        .overlay(
+            Rectangle()
+                .fill(Color(hex: "#3A3A3C"))
+                .frame(height: 0.5),
+            alignment: .top
+        )
+    }
+
+    private func bottomNavButton(icon: String, title: String, tab: AppTab) -> some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = tab
+            }
+        }) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(selectedTab == tab ? .notateNeuralBlue : .secondary)
+
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(selectedTab == tab ? .notateNeuralBlue : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// Remove all old code below - not needed with new timeline design
+/*
+    // Old Custom Toolbar
     private var customToolbar: some View {
         HStack {
             // Left side - App title and icon
@@ -267,54 +317,43 @@ struct ContentView: View {
     }
     
     private var allEntriesView: some View {
-        List {
-            let todos = appState.filteredEntries().filter { $0.isTodo }
-            let thoughts = appState.filteredEntries().filter { $0.isPiece }
-            
-            if !todos.isEmpty {
-                Section("TODOs (\(todos.count))") {
-                    ForEach(todos) { todo in
-                        ModernTodoRowView(todo: todo)
-                            .swipeActions(allowsFullSwipe: false) {
-                                Button("Convert to Thought") {
-                                    appState.convertTodoToThought(todo)
-                                }
-                                .tint(.blue)
+        ScrollView {
+            LazyVStack(spacing: NotateDesignSystem.Spacing.space3) {
+                let todos = appState.filteredEntries().filter { $0.isTodo }
+                let thoughts = appState.filteredEntries().filter { $0.isPiece }
 
-                                Button("Delete", role: .destructive) {
-                                    appState.deleteEntry(todo)
-                                }
-                                
-                                if todo.status == EntryStatus.open {
-                                    Button("Done") {
-                                        appState.markTodoAsDone(todo)
-                                    }
-                                    .tint(.green)
-                                }
-                            }
+                if !todos.isEmpty {
+                    // Section header
+                    Text("TODOs (\(todos.count))")
+                        .font(.notateH3)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, NotateDesignSystem.Spacing.space4)
+
+                    ForEach(todos) { todo in
+                        NotateEntryCard(entry: todo)
+                            .environmentObject(appState)
                     }
                 }
-            }
-            
-            if !thoughts.isEmpty {
-                Section("Pieces (\(thoughts.count))") {
+
+                if !thoughts.isEmpty {
+                    Text("Pieces (\(thoughts.count))")
+                        .font(.notateH3)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, NotateDesignSystem.Spacing.space4)
+                        .padding(.top, NotateDesignSystem.Spacing.space4)
+
                     ForEach(thoughts) { thought in
-                        ThoughtRowView(thought: thought)
-                            .swipeActions(allowsFullSwipe: false) {
-                                Button("Delete", role: .destructive) {
-                                    appState.deleteEntry(thought)
-                                }
-                                
-                                Button("Convert to TODO") {
-                                    appState.convertThoughtToTodo(thought)
-                                }
-                                .tint(.blue)
-                            }
+                        NotateEntryCard(entry: thought)
+                            .environmentObject(appState)
                     }
                 }
             }
+            .padding(.horizontal, NotateDesignSystem.Spacing.space4)
+            .padding(.vertical, NotateDesignSystem.Spacing.space3)
         }
-        .listStyle(PlainListStyle())
+        .background(Color.notateGhost)
     }
     
     private var emptyStateView: some View {
@@ -503,3 +542,4 @@ struct ContentView: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
+*/
