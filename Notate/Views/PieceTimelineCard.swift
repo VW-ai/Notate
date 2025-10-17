@@ -6,6 +6,7 @@ import SwiftUI
 struct PieceTimelineCard: View {
     let piece: Entry
     @EnvironmentObject var appState: AppState
+    @StateObject private var tagDragState = TagDragState.shared
 
     @State private var isHovering = false
 
@@ -15,9 +16,14 @@ struct PieceTimelineCard: View {
 
     var body: some View {
         Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                appState.selectedEvent = nil // Close any open event first
-                appState.selectedEntry = piece
+            // If dragging tags, assign them; otherwise open detail
+            if tagDragState.isDragging {
+                tagDragState.assignToEntry(piece.id, appState: appState)
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.selectedEvent = nil // Close any open event first
+                    appState.selectedEntry = piece
+                }
             }
         }) {
             VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space2) {

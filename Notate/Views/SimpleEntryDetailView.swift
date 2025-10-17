@@ -143,7 +143,7 @@ struct SimpleEntryDetailView: View {
                                 if !entry.tags.isEmpty {
                                     FlowLayout(spacing: 8) {
                                         ForEach(entry.tags, id: \.self) { tag in
-                                            let tagColor = tagColorManager.colorForTag(tag)
+                                            let tagColor = tagColorManager.getColorForTag(tag) ?? .gray
                                             HStack(spacing: 4) {
                                                 Text("#\(tag)")
                                                     .font(.system(size: 12))
@@ -581,6 +581,9 @@ struct SimpleEntryDetailView: View {
         var updatedEntry = entry
         updatedEntry.tags.append(cleanedTag)
         appState.updateEntry(updatedEntry)
+
+        // Ensure tag has a color assigned AFTER successful update
+        tagColorManager.ensureColorForTag(cleanedTag)
 
         // Update the selected entry to trigger UI refresh
         if let refreshedEntry = appState.databaseManager.entries.first(where: { $0.id == entry.id }) {

@@ -1,5 +1,6 @@
 import SwiftUI
 import EventKit
+import Combine
 
 // MARK: - Simple Event Detail View
 // Minimal detail view for calendar events - same layout as SimpleEntryDetailView
@@ -274,7 +275,7 @@ struct SimpleEventDetailView: View {
                                 if !eventTags.isEmpty {
                                     FlowLayout(spacing: 8) {
                                         ForEach(eventTags, id: \.self) { tag in
-                                            let tagColor = tagColorManager.colorForTag(tag)
+                                            let tagColor = tagColorManager.getColorForTag(tag) ?? .gray
                                             HStack(spacing: 4) {
                                                 Text("#\(tag)")
                                                     .font(.system(size: 12))
@@ -549,7 +550,7 @@ struct SimpleEventDetailView: View {
         // Add to local tags
         eventTags.append(cleanedTag)
 
-        // Update event notes with tags
+        // Update event notes with tags (this will also ensure color is assigned)
         updateEventTags()
 
         // Clear input
@@ -591,7 +592,16 @@ struct SimpleEventDetailView: View {
 
                 // Refresh calendar events to get updated data
                 await MainActor.run {
-                    CalendarService.shared.fetchEvents(for: Date())
+                    // Ensure all tags have colors assigned AFTER successful save
+                    for tag in eventTags {
+                        tagColorManager.ensureColorForTag(tag)
+                    }
+
+                    // Refresh the event's date to update the calendar service
+                    CalendarService.shared.fetchEvents(for: event.startTime)
+
+                    // Force objectWillChange to notify observers
+                    CalendarService.shared.objectWillChange.send()
                 }
             } catch {
                 print("❌ Failed to update event tags: \(error)")

@@ -6,6 +6,7 @@ import SwiftUI
 struct TimelineView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var calendarService = CalendarService.shared
+    @StateObject private var tagDragState = TagDragState.shared
     @State private var selectedDate = Date()
     @State private var showTagPanel = true // Show tag panel by default
 
@@ -14,18 +15,31 @@ struct TimelineView: View {
         appState.selectedEntry != nil || appState.selectedEvent != nil
     }
 
+    // Header height constants
+    private let headerTopSpace: CGFloat = 80
+    private let datePickerHeight: CGFloat = 70
+    private var totalHeaderHeight: CGFloat {
+        headerTopSpace + datePickerHeight
+    }
+
+    // Calculate tag panel width based on available screen space
+    private func calculateTagPanelWidth(screenWidth: CGFloat) -> CGFloat? {
+        // For tag cloud, take up to 40% of screen width when there's space
+        // But don't constrain on small screens - let it be full width
+        if screenWidth >= 1200 {
+            return min(screenWidth * 0.4, 600) // Max 600px on large screens
+        } else if screenWidth >= 800 {
+            return min(screenWidth * 0.5, 400) // Up to 50% on medium screens
+        } else {
+            return nil // Full width on small screens
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
-            // Main content layer
+            // Main content layer (timeline + detail panel)
             GeometryReader { geometry in
                 HStack(spacing: 0) {
-                    // Tag Management Panel (always on far left)
-                    if showTagPanel {
-                        TagManagementPanel()
-                            .environmentObject(appState)
-                            .transition(.move(edge: .leading))
-                    }
-
                     // Detail Panel (slides in from left)
                     if isDetailPanelPresented {
                         ZStack {
@@ -50,19 +64,62 @@ struct TimelineView: View {
                     VStack(spacing: 0) {
                         // Spacer for date navigation header
                         Spacer()
-                            .frame(height: 150) // 80px top space + 70px date picker
+                            .frame(height: totalHeaderHeight)
 
                         // Timeline content
                         timelineContent(geometry: geometry)
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: isDetailPanelPresented)
-                .animation(.easeInOut(duration: 0.3), value: showTagPanel)
+            }
+
+            // Tag Management Panel (overlay on left side)
+            if showTagPanel {
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        VStack(spacing: 0) {
+                            // Spacer to avoid date navigation header
+                            Spacer()
+                                .frame(height: totalHeaderHeight)
+
+                            // Responsive width: prefer to use available space, but respect minimums
+                            TagManagementPanel(availableWidth: calculateTagPanelWidth(screenWidth: geometry.size.width))
+                                .environmentObject(appState)
+                        }
+                        .transition(.move(edge: .leading))
+
+                        Spacer()
+                            .allowsHitTesting(false) // Allow clicks through the spacer to timeline below
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: showTagPanel)
+                }
+                .allowsHitTesting(true) // Panel itself can receive hits
+                .zIndex(50)
             }
 
             // Date navigation header (always on top)
             dateNavigationHeader
                 .zIndex(100)
+
+            // Global mouse tracking overlay for tag dragging
+            if tagDragState.isDragging {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .gesture(
+                        TapGesture().onEnded {
+                            // Click on empty space - cancel drag
+                            tagDragState.stopDragging()
+                        }
+                    )
+                    .overlay(
+                        FloatingTagsCursor(
+                            tags: tagDragState.draggingTags,
+                            position: tagDragState.cursorPosition
+                        )
+                    )
+                    .zIndex(200)
+            }
         }
         .onAppear {
             calendarService.fetchEvents(for: selectedDate)
@@ -136,7 +193,7 @@ struct TimelineView: View {
     private var dateNavigationHeader: some View {
         VStack(spacing: 0) {
             Spacer()
-                .frame(height: 80) // Even more space from top
+                .frame(height: headerTopSpace)
 
             // Date picker with tag panel toggle
             HStack(spacing: 0) {
@@ -174,7 +231,7 @@ struct TimelineView: View {
                 }
             }
         }
-        .frame(height: 70)
+        .frame(height: datePickerHeight)
     }
 
     private func dateButton(for date: Date, isCenter: Bool) -> some View {

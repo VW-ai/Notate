@@ -287,6 +287,7 @@ struct StretchableEventCard: View {
     let alignedPiecesCount: Int
     @Binding var isCollapsed: Bool
     @EnvironmentObject var appState: AppState
+    @StateObject private var tagDragState = TagDragState.shared
 
     var body: some View {
         HStack(alignment: .top, spacing: NotateDesignSystem.Spacing.space2) {
@@ -389,9 +390,14 @@ struct StretchableEventCard: View {
         )
         .shadowSubtle(darkMode: true)
         .onTapGesture {
-            withAnimation {
-                appState.selectedEntry = nil // Close any open entry first
-                appState.selectedEvent = event
+            // If dragging tags, assign them; otherwise open detail
+            if tagDragState.isDragging {
+                tagDragState.assignToEvent(event.id, calendarService: CalendarService.shared)
+            } else {
+                withAnimation {
+                    appState.selectedEntry = nil // Close any open entry first
+                    appState.selectedEvent = event
+                }
             }
         }
         .onDrag {

@@ -9,6 +9,7 @@ class TagColorManager: ObservableObject {
     static let shared = TagColorManager()
 
     @Published private(set) var tagColors: [String: Color] = [:]
+    @Published private(set) var knownTags: Set<String> = [] // Track all known tags, even those with 0 count
 
     // 72 distinct, visually pleasing colors
     private let colorPalette: [Color] = [
@@ -56,12 +57,19 @@ class TagColorManager: ObservableObject {
     ]
 
     private let userDefaultsKey = "tagColorMapping"
+    private let knownTagsKey = "knownTags"
 
     private init() {
         loadColors()
+        loadKnownTags()
     }
 
     // MARK: - Public Methods
+
+    /// Get color for a tag (returns nil if not assigned yet)
+    func getColorForTag(_ tag: String) -> Color? {
+        return tagColors[tag]
+    }
 
     /// Get color for a tag (assigns new random color if not exists)
     func colorForTag(_ tag: String) -> Color {
@@ -72,8 +80,35 @@ class TagColorManager: ObservableObject {
         // Assign new random color
         let newColor = getRandomUnusedColor()
         tagColors[tag] = newColor
+
+        // Also register as known tag (but don't call registerTag to avoid recursion)
+        knownTags.insert(tag)
+
         saveColors()
+        saveKnownTags()
         return newColor
+    }
+
+    /// Ensure color is assigned for a tag (safe to call during view updates)
+    func ensureColorForTag(_ tag: String) {
+        guard tagColors[tag] == nil else { return }
+        _ = colorForTag(tag)
+    }
+
+    /// Register a tag as known (e.g., when creating via + button)
+    func registerTag(_ tag: String) {
+        let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        if knownTags.insert(trimmed).inserted {
+            saveKnownTags()
+            // Assign color immediately when registering
+            if tagColors[trimmed] == nil {
+                let newColor = getRandomUnusedColor()
+                tagColors[trimmed] = newColor
+                saveColors()
+            }
+        }
     }
 
     /// Manually set color for a tag
@@ -85,13 +120,22 @@ class TagColorManager: ObservableObject {
     /// Remove color mapping for a tag
     func removeTag(_ tag: String) {
         tagColors.removeValue(forKey: tag)
+        knownTags.remove(tag)
         saveColors()
+        saveKnownTags()
     }
 
     /// Clear all color mappings
     func clearAllColors() {
         tagColors.removeAll()
+        knownTags.removeAll()
         saveColors()
+        saveKnownTags()
+    }
+
+    /// Get all known tags (including those with 0 count)
+    func getAllKnownTags() -> Set<String> {
+        return knownTags
     }
 
     // MARK: - Private Methods
@@ -127,6 +171,18 @@ class TagColorManager: ObservableObject {
         tagColors = colorDict.compactMapValues { hexString in
             Color(hex: hexString)
         }
+    }
+
+    private func saveKnownTags() {
+        let tagsArray = Array(knownTags)
+        UserDefaults.standard.set(tagsArray, forKey: knownTagsKey)
+    }
+
+    private func loadKnownTags() {
+        guard let tagsArray = UserDefaults.standard.array(forKey: knownTagsKey) as? [String] else {
+            return
+        }
+        knownTags = Set(tagsArray)
     }
 }
 
