@@ -26,34 +26,46 @@ struct PieceTimelineCard: View {
                 }
             }
         }) {
-            VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space2) {
-                // Content
-                Text(piece.content)
-                    .font(.notateBody)
-                    .foregroundColor(.primary)
-                    .lineLimit(4)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Time and AI actions row
-                HStack(spacing: NotateDesignSystem.Spacing.space2) {
-                    // Time (when piece was captured)
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 10, weight: .medium))
-                        Text(piece.createdAt.formatted(date: .omitted, time: .shortened))
-                            .font(.notateTiny)
-                    }
+            HStack(alignment: .top, spacing: NotateDesignSystem.Spacing.space2) {
+                // Left side: Time (single line for entry)
+                Text(piece.createdAt.formatted(date: .omitted, time: .shortened))
+                    .font(.notateTiny)
                     .foregroundColor(.secondary)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(minWidth: 65, alignment: .leading)
 
-                    Spacer()
+                Rectangle()
+                    .fill(Color(hex: "#7CB342").opacity(0.5))
+                    .frame(width: 3)
 
-                    // AI action icons
-                    aiActionIcons
+                // Right side: Content
+                VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space3) {
+                    // Content (title)
+                    Text(piece.content)
+                        .font(.notateBodyMedium)
+                        .foregroundColor(.primary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Tags row (always reserve space)
+                    if !piece.tags.isEmpty {
+                        tagsRow
+                    } else {
+                        // Empty placeholder to reserve vertical space
+                        Spacer()
+                            .frame(height: 20)
+                    }
+
+                    // AI action icons at bottom right
+                    HStack {
+                        Spacer()
+                        aiActionIcons
+                    }
                 }
             }
-            .padding(.vertical, NotateDesignSystem.Spacing.space4)
-            .padding(.horizontal, NotateDesignSystem.Spacing.space3)
+            .padding(.vertical, NotateDesignSystem.Spacing.space5)
+            .padding(.horizontal, NotateDesignSystem.Spacing.space5)
             .background(
                 RoundedRectangle(cornerRadius: NotateDesignSystem.CornerRadius.medium)
                     .fill(Color(hex: "#7CB342").opacity(0.2))
@@ -74,6 +86,30 @@ struct PieceTimelineCard: View {
             // Provide drag data for tagging
             let dragData = "entry:\(piece.id)"
             return NSItemProvider(object: dragData as NSString)
+        }
+    }
+
+    // MARK: - Tags Row
+
+    private var tagsRow: some View {
+        HStack(spacing: 6) {
+            ForEach(piece.tags.prefix(5), id: \.self) { tag in
+                Text("#\(tag)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(TagColorManager.shared.getColorForTag(tag)?.opacity(0.8) ?? Color.gray.opacity(0.8))
+                    )
+            }
+
+            if piece.tags.count > 5 {
+                Text("+\(piece.tags.count - 5)")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.secondary)
+            }
         }
     }
 

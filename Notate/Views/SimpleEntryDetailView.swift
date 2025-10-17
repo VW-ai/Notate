@@ -53,26 +53,23 @@ struct SimpleEntryDetailView: View {
         GeometryReader { geometry in
             let topHeaderHeight: CGFloat = 150
 
-            VStack(spacing: 0) {
-                // First: padding to clear the weekday selection
-                Spacer()
-                    .frame(height: topHeaderHeight)
-
-                // Then: center the card in the remaining space
-                Spacer()
-
-                HStack(alignment: .top, spacing: 0) {
-                    // Left spacer - tap to close
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // First: padding to clear the weekday selection
                     Spacer()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation {
-                                appState.selectedEntry = nil
-                            }
-                        }
+                        .frame(height: topHeaderHeight)
 
-                    // Card positioned on the right side of the detail panel
-                    ScrollView {
+                    HStack(alignment: .top, spacing: 0) {
+                        // Left spacer - tap to close
+                        Spacer()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation {
+                                    appState.selectedEntry = nil
+                                }
+                            }
+
+                        // Content positioned on the right side of the detail panel
                         VStack(alignment: .leading, spacing: 24) {
                             // Close button at top right
                             HStack {
@@ -132,7 +129,7 @@ struct SimpleEntryDetailView: View {
                                         Text("Regenerate AI Actions")
                                             .font(.system(size: 14, weight: .medium))
                                     }
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.orange)
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
@@ -240,30 +237,26 @@ struct SimpleEntryDetailView: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                         .padding(32)
+                        .padding(.bottom, 60) // Extra bottom padding for comfortable scrolling
                     }
-                    .frame(maxWidth: geometry.size.width * 0.36, maxHeight: geometry.size.height * 0.35)
-                    .background(
-                        GeometryReader { cardGeometry in
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(hex: "#2C2C2E"))
-
-                                // Triangular pointer pointing RIGHT (toward entry) - positioned at center
-                                TrianglePointer()
-                                    .fill(Color(hex: "#2C2C2E"))
-                                    .frame(width: 16, height: 28)
-                                    .position(x: cardGeometry.size.width + 8, y: cardGeometry.size.height / 2)
-                            }
-                        }
+                    .frame(maxWidth: .infinity) // Take full width of container
+                    .background(Color(hex: "#1C1C1E")) // Same as main timeline background
+                    .overlay(
+                        // Inset shadow on all sides using entry green color
+                        Rectangle()
+                            .stroke(Color.clear, lineWidth: 0)
+                            .shadow(color: Color(hex: "#7CB342").opacity(0.3), radius: 8, x: 0, y: 0)
+                            .shadow(color: Color(hex: "#7CB342").opacity(0.2), radius: 4, x: 2, y: 0)  // Right
+                            .shadow(color: Color(hex: "#7CB342").opacity(0.2), radius: 4, x: -2, y: 0) // Left
+                            .shadow(color: Color(hex: "#7CB342").opacity(0.2), radius: 4, x: 0, y: 2)  // Bottom
+                            .shadow(color: Color(hex: "#7CB342").opacity(0.2), radius: 4, x: 0, y: -2) // Top
                     )
-                    .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.8).combined(with: .opacity),
                         removal: .scale(scale: 0.9).combined(with: .opacity)
                     ))
                 }
-
-                Spacer() // Bottom spacer
+                .frame(minHeight: geometry.size.height) // Ensure content takes full height
             }
         }
         .background(Color(hex: "#1C1C1E").opacity(0.5))
@@ -676,7 +669,7 @@ struct AIActionSimpleRow: View {
                             Image(systemName: "arrow.right")
                                 .font(.system(size: 10))
                         }
-                        .foregroundColor(.blue)
+                        .foregroundColor(.orange)
                     }
                     .buttonStyle(PlainButtonStyle())
 
@@ -689,7 +682,7 @@ struct AIActionSimpleRow: View {
                                 Text("Revert")
                                     .font(.system(size: 12))
                             }
-                            .foregroundColor(.orange)
+                            .foregroundColor(.red)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -718,9 +711,9 @@ struct AIActionSimpleRow: View {
         switch action.type {
         case .calendar: return .red
         case .appleReminders: return .orange
-        case .contacts: return .blue
-        case .maps: return .green
-        case .webSearch: return .purple
+        case .contacts: return Color(hex: "#FFB84D") // Light orange
+        case .maps: return .yellow
+        case .webSearch: return Color(hex: "#FF6B35") // Red-orange
         }
     }
 

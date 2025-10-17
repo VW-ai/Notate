@@ -117,15 +117,17 @@ struct TagManagementPanel: View {
             headerSection
 
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(Color.white.opacity(0.15))
+                .padding(.horizontal, 16)
 
             tagListSection
         }
         .frame(maxWidth: availableWidth, maxHeight: .infinity)
-        .background(Color(hex: "#2C2C2E"))
+        .background(Color(hex: "#1C1C1E")) // Same as main timeline background
         .overlay(
+            // Subtle separator line on the right edge
             Rectangle()
-                .fill(Color.white.opacity(0.1))
+                .fill(Color.white.opacity(0.08))
                 .frame(width: 1),
             alignment: .trailing
         )
@@ -168,7 +170,9 @@ struct TagManagementPanel: View {
 
             instructionsText
         }
-        .padding(24)
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 20)
     }
 
     private var headerTitle: some View {
@@ -255,7 +259,7 @@ struct TagManagementPanel: View {
     }
 
     private var instructionsText: some View {
-        Text("Drag entries/events here to tag them")
+        Text("Drag tags to entries/events to assign them")
             .font(.system(size: 12))
             .foregroundColor(.secondary)
     }
@@ -263,7 +267,7 @@ struct TagManagementPanel: View {
     // MARK: - Tag List Section
 
     private var tagListSection: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(spacing: 8) {
                 if tagCounts.isEmpty {
                     emptyState
@@ -271,7 +275,8 @@ struct TagManagementPanel: View {
                     tagList
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 24)
         }
     }
 
@@ -294,7 +299,7 @@ struct TagManagementPanel: View {
     }
 
     private var tagList: some View {
-        FlowLayout(spacing: 8) {
+        FlowLayout(spacing: 12) {
             ForEach(cachedTagCounts, id: \.tag) { item in
                 TagCloudChip(
                     tag: item.tag,
@@ -634,6 +639,12 @@ struct TagCloudChip: View {
         .padding(.vertical, tier.padding.vertical)
         .background(chipBackground)
         .overlay(chipStroke)
+        .shadow(
+            color: isSelected ? color.opacity(0.4) : (isHovering ? Color.black.opacity(0.2) : Color.black.opacity(0.1)),
+            radius: isSelected ? 8 : (isHovering ? 4 : 2),
+            x: 0,
+            y: isSelected ? 4 : (isHovering ? 2 : 1)
+        )
         .onHover { hovering in
             if !TagDragState.shared.isDragging {
                 withAnimation(.easeInOut(duration: 0.15)) {

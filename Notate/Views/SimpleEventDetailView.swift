@@ -61,26 +61,23 @@ struct SimpleEventDetailView: View {
         GeometryReader { geometry in
             let topHeaderHeight: CGFloat = 150
 
-            VStack(spacing: 0) {
-                // First: padding to clear the weekday selection
-                Spacer()
-                    .frame(height: topHeaderHeight)
-
-                // Then: center the card in the remaining space
-                Spacer()
-
-                HStack(alignment: .top, spacing: 0) {
-                    // Left spacer - tap to close
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // First: padding to clear the weekday selection
                     Spacer()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation {
-                                appState.selectedEvent = nil
-                            }
-                        }
+                        .frame(height: topHeaderHeight)
 
-                    // Card positioned on the right side of the detail panel
-                    ScrollView {
+                    HStack(alignment: .top, spacing: 0) {
+                        // Left spacer - tap to close
+                        Spacer()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation {
+                                    appState.selectedEvent = nil
+                                }
+                            }
+
+                        // Content positioned on the right side of the detail panel
                         VStack(alignment: .leading, spacing: 24) {
                             // Close button at top right
                             HStack {
@@ -109,42 +106,7 @@ struct SimpleEventDetailView: View {
                                 }
 
                             // Time range (editable with DatePickers)
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "clock")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                    Text("Start:")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-
-                                    DatePicker("", selection: $editedStartTime)
-                                        .labelsHidden()
-                                        .onChange(of: editedStartTime) { newValue in
-                                            updateEventTimes()
-                                        }
-                                }
-
-                                HStack(spacing: 8) {
-                                    Image(systemName: "clock")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                    Text("End:")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-
-                                    DatePicker("", selection: $editedEndTime)
-                                        .labelsHidden()
-                                        .onChange(of: editedEndTime) { newValue in
-                                            updateEventTimes()
-                                        }
-                                }
-
-                                Text("(\(calculateDuration()))")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary.opacity(0.7))
-                                    .padding(.leading, 22)
-                            }
+                            timeRangeSection
 
                             // Location (read-only, click to open Calendar)
                             if let location = event.location, !location.isEmpty {
@@ -264,7 +226,7 @@ struct SimpleEventDetailView: View {
                                         Text("Open Link")
                                             .font(.system(size: 14, weight: .medium))
                                     }
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.orange)
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
@@ -361,17 +323,17 @@ struct SimpleEventDetailView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "sparkles")
                                         .font(.system(size: 12))
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.orange)
 
                                     Text("AI Generated")
                                         .font(.system(size: 12))
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.orange)
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.blue.opacity(0.1))
+                                        .fill(Color.orange.opacity(0.1))
                                 )
                             }
 
@@ -390,30 +352,26 @@ struct SimpleEventDetailView: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                         .padding(32)
+                        .padding(.bottom, 60) // Extra bottom padding for comfortable scrolling
                     }
-                    .frame(maxWidth: geometry.size.width * 0.36, maxHeight: geometry.size.height * 0.35)
-                    .background(
-                        GeometryReader { cardGeometry in
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(hex: "#2C2C2E"))
-
-                                // Triangular pointer pointing RIGHT (toward entry) - positioned at center
-                                TrianglePointer()
-                                    .fill(Color(hex: "#2C2C2E"))
-                                    .frame(width: 16, height: 28)
-                                    .position(x: cardGeometry.size.width + 8, y: cardGeometry.size.height / 2)
-                            }
-                        }
+                    .frame(maxWidth: .infinity) // Take full width of container
+                    .background(Color(hex: "#1C1C1E")) // Same as main timeline background
+                    .overlay(
+                        // Inset shadow on all sides using event brown color
+                        Rectangle()
+                            .stroke(Color.clear, lineWidth: 0)
+                            .shadow(color: Color(hex: "#8B7355").opacity(0.3), radius: 8, x: 0, y: 0)
+                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 2, y: 0)  // Right
+                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: -2, y: 0) // Left
+                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 0, y: 2)  // Bottom
+                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 0, y: -2) // Top
                     )
-                    .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.8).combined(with: .opacity),
                         removal: .scale(scale: 0.9).combined(with: .opacity)
                     ))
                 }
-
-                Spacer() // Bottom spacer
+                .frame(minHeight: geometry.size.height) // Ensure content takes full height
             }
         }
         .background(Color(hex: "#1C1C1E").opacity(0.5))
@@ -640,5 +598,81 @@ struct SimpleEventDetailView: View {
         let range = NSRange(notes.startIndex..., in: notes)
         let result = regex.stringByReplacingMatches(in: notes, options: [], range: range, withTemplate: "")
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // MARK: - Time Range Section
+
+    private var timeRangeSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            startTimeCard
+            endTimeCard
+            durationDisplay
+        }
+    }
+
+    private var startTimeCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 12))
+                    .foregroundColor(.yellow)
+                Text("Start")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+
+            DatePicker("", selection: $editedStartTime)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .font(.system(size: 13, weight: .semibold))
+                .scaleEffect(x: 1.15, y: 1.0, anchor: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .onChange(of: editedStartTime) { newValue in
+                    updateEventTimes()
+                }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.25), lineWidth: 1))
+    }
+
+    private var endTimeCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 12))
+                    .foregroundColor(.yellow)
+                Text("End")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+
+            DatePicker("", selection: $editedEndTime)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .font(.system(size: 13, weight: .semibold))
+                .scaleEffect(x: 1.15, y: 1.0, anchor: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .onChange(of: editedEndTime) { newValue in
+                    updateEventTimes()
+                }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.25), lineWidth: 1))
+    }
+
+    private var durationDisplay: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "timer")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary.opacity(0.7))
+            Text("Duration: \(calculateDuration())")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary.opacity(0.7))
+        }
+        .padding(.leading, 22)
     }
 }

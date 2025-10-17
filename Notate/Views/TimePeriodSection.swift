@@ -296,14 +296,16 @@ struct StretchableEventCard: View {
                 Text(event.startTime.formatted(date: .omitted, time: .shortened))
                     .font(.notateTiny)
                     .foregroundColor(.secondary)
+                    .fixedSize(horizontal: true, vertical: false) // Prevent wrapping
 
                 Spacer()
 
                 Text(event.endTime.formatted(date: .omitted, time: .shortened))
                     .font(.notateTiny)
                     .foregroundColor(.secondary)
+                    .fixedSize(horizontal: true, vertical: false) // Prevent wrapping
             }
-            .frame(width: 50)
+            .frame(minWidth: 65) // Increased from 50 to prevent "12:24 PM" wrapping
 
             Rectangle()
                 .fill(event.isAIGenerated ? Color.notateNeuralBlue : Color(hex: "#3A3A3C"))
@@ -311,15 +313,11 @@ struct StretchableEventCard: View {
 
             // Middle: Event content
             VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space3) {
+                // Title and collapse button
                 HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(event.title)
-                            .font(.notateBodyMedium)
-                            .foregroundColor(.primary)
-                        Text(event.duration)
-                            .font(.notateTiny)
-                            .foregroundColor(.secondary)
-                    }
+                    Text(event.title)
+                        .font(.notateBodyMedium)
+                        .foregroundColor(.primary)
 
                     Spacer()
 
@@ -338,6 +336,9 @@ struct StretchableEventCard: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
+
+                // Tags row (extracted from notes)
+                eventTagsRow
 
                 // Location and attendees
                 if event.location != nil || !event.attendees.isEmpty {
@@ -373,10 +374,18 @@ struct StretchableEventCard: View {
                         }
                     }
                 }
+
+                // Duration at bottom right
+                HStack {
+                    Spacer()
+                    Text(event.duration)
+                        .font(.notateTiny)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .padding(.vertical, NotateDesignSystem.Spacing.space5)
-        .padding(.horizontal, NotateDesignSystem.Spacing.space3)
+        .padding(.horizontal, NotateDesignSystem.Spacing.space5)
         .background(
             RoundedRectangle(cornerRadius: NotateDesignSystem.CornerRadius.medium)
                 .fill(event.isAIGenerated ? Color.notateNeuralBlue.opacity(0.15) : Color(hex: "#8B7355").opacity(0.2))
@@ -404,6 +413,40 @@ struct StretchableEventCard: View {
             // Provide drag data for tagging
             let dragData = "event:\(event.id)"
             return NSItemProvider(object: dragData as NSString)
+        }
+    }
+
+    // MARK: - Event Tags Row
+
+    private var eventTagsRow: some View {
+        let eventTags = SimpleEventDetailView.extractTags(from: event.notes)
+
+        return Group {
+            if !eventTags.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(eventTags.prefix(5), id: \.self) { tag in
+                        Text("#\(tag)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(TagColorManager.shared.getColorForTag(tag)?.opacity(0.8) ?? Color.gray.opacity(0.8))
+                            )
+                    }
+
+                    if eventTags.count > 5 {
+                        Text("+\(eventTags.count - 5)")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            } else {
+                // Empty placeholder to reserve vertical space
+                Spacer()
+                    .frame(height: 20)
+            }
         }
     }
 }

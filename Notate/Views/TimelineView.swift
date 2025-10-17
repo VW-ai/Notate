@@ -39,41 +39,56 @@ struct TimelineView: View {
         ZStack(alignment: .top) {
             // Main content layer (timeline + detail panel)
             GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Detail Panel (slides in from left)
-                    if isDetailPanelPresented {
-                        ZStack {
-                            Color(hex: "#1C1C1E")
+                ZStack(alignment: .leading) {
+                    // Main Timeline Content - ALWAYS in right half, never moves
+                    HStack(spacing: 0) {
+                        Spacer() // Pushes timeline to right half
 
-                            if let selectedEntry = appState.selectedEntry {
-                                // Show entry detail
-                                SimpleEntryDetailView(entry: selectedEntry)
-                                    .environmentObject(appState)
-                                    .id(selectedEntry.id) // Force new view when entry changes
-                            } else if let selectedEvent = appState.selectedEvent {
-                                // Show event detail
-                                SimpleEventDetailView(event: selectedEvent)
-                                    .environmentObject(appState)
-                                    .id(selectedEvent.id) // Force new view when event changes
-                            }
+                        VStack(spacing: 0) {
+                            // Spacer for date navigation header
+                            Spacer()
+                                .frame(height: totalHeaderHeight)
+
+                            // Timeline content
+                            timelineContent(geometry: geometry)
                         }
-                        .frame(width: geometry.size.width * 0.5)
+                        .frame(width: geometry.size.width / 2)
                     }
 
-                    // Main Timeline Content (without date header)
-                    VStack(spacing: 0) {
-                        // Spacer for date navigation header
-                        Spacer()
-                            .frame(height: totalHeaderHeight)
+                    // Detail Panel - occupies the quarter immediately left of timeline
+                    if isDetailPanelPresented {
+                        HStack(spacing: 0) {
+                            // Left quarter - empty space (for tag panel)
+                            Spacer()
+                                .frame(width: geometry.size.width * 0.25)
 
-                        // Timeline content
-                        timelineContent(geometry: geometry)
+                            // Second quarter - detail view
+                            ZStack {
+                                Color(hex: "#1C1C1E")
+
+                                if let selectedEntry = appState.selectedEntry {
+                                    // Show entry detail
+                                    SimpleEntryDetailView(entry: selectedEntry)
+                                        .environmentObject(appState)
+                                        .id(selectedEntry.id) // Force new view when entry changes
+                                } else if let selectedEvent = appState.selectedEvent {
+                                    // Show event detail
+                                    SimpleEventDetailView(event: selectedEvent)
+                                        .environmentObject(appState)
+                                        .id(selectedEvent.id) // Force new view when event changes
+                                }
+                            }
+                            .frame(width: geometry.size.width * 0.25)
+                            .transition(.move(edge: .leading))
+
+                            Spacer() // Fills the rest (timeline's space - right half)
+                        }
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: isDetailPanelPresented)
             }
 
-            // Tag Management Panel (overlay on left side)
+            // Tag Management Panel (overlay on left side, behind detail panel)
             if showTagPanel {
                 GeometryReader { geometry in
                     HStack(spacing: 0) {
@@ -94,7 +109,7 @@ struct TimelineView: View {
                     .animation(.easeInOut(duration: 0.3), value: showTagPanel)
                 }
                 .allowsHitTesting(true) // Panel itself can receive hits
-                .zIndex(50)
+                .zIndex(10) // Below detail panel (which is in the main content layer)
             }
 
             // Date navigation header (always on top)
@@ -133,16 +148,8 @@ struct TimelineView: View {
 
     @ViewBuilder
     private func timelineContent(geometry: GeometryProxy) -> some View {
-        GeometryReader { timelineGeometry in
-            HStack(spacing: 0) {
-                // Left blank space (50% on larger screens when detail panel is NOT shown)
-                if !isDetailPanelPresented && geometry.size.width > 1200 {
-                    Color.clear
-                        .frame(width: timelineGeometry.size.width / 2)
-                }
-
-                // Timeline scroll view
-                ScrollView {
+        // Timeline scroll view - takes full width given to it
+        ScrollView {
                     VStack(spacing: NotateDesignSystem.Spacing.space5) {
                         // Morning section (6am - 12pm)
                         TimePeriodSection(
@@ -179,13 +186,10 @@ struct TimelineView: View {
                             selectedDate: selectedDate
                         )
                     }
-                    .padding(.horizontal, NotateDesignSystem.Spacing.space6)
-                    .padding(.vertical, NotateDesignSystem.Spacing.space4)
-                }
-                .frame(maxWidth: !isDetailPanelPresented && geometry.size.width > 1200 ? timelineGeometry.size.width / 2 : .infinity)
-            }
-            .background(Color(hex: "#1C1C1E"))
+            .padding(.horizontal, NotateDesignSystem.Spacing.space6)
+            .padding(.vertical, NotateDesignSystem.Spacing.space4)
         }
+        .background(Color(hex: "#1C1C1E"))
     }
 
     // MARK: - Date Navigation Header
