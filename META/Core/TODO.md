@@ -2,6 +2,38 @@
 
 ## High Priority
 
+### New User Input Features (2025-10-17)
+- [ ] **Copy and Paste Support for Entries**
+  - Implement clipboard functionality for entry content
+  - Support both plain text and formatted content
+  - Keyboard shortcuts (Cmd+C, Cmd+V)
+  - Context menu integration
+
+- [ ] **Feedback System (After User Typed)**
+  - Real-time or post-typing feedback mechanism
+  - Validation, suggestions, or AI feedback
+  - Visual indicators for feedback state
+  - Integration with entry creation flow
+
+- [ ] **Tracker Integration**
+  - Time tracking or activity tracking system integration
+  - Determine which tracker system to integrate with
+  - Automatic time logging for entries/events
+  - Export/sync functionality
+
+- [ ] **Ending Trigger Implementation**
+  - Allow users to mark end of sentences with configurable trigger
+  - Custom character or key combination to signal completion
+  - Settings UI for trigger configuration
+  - Integration with entry submission flow
+
+- [ ] **Chinese Support + Symbol Support**
+  - Internationalization for Chinese language
+  - Proper rendering and input of Chinese characters
+  - Support special symbols and characters
+  - IME (Input Method Editor) compatibility
+  - Font rendering optimization for Chinese text
+
 ### Tag Management Enhancements
 - [ ] **Implement tag filtering on timeline**
   - Apply selected tags filter to entry/event display
@@ -111,6 +143,21 @@
 
 ## Completed This Session ✅
 
+### 2025-10-17 - Sticky Cursor & UI Polish
+- [x] Implement sticky cursor tag assignment system
+- [x] Add global mouse tracking for tag drag state
+- [x] Unify timeline card layouts (entry + event alignment)
+- [x] Restructure detail view scrolling architecture
+- [x] Add colored inset shadows to detail panels
+- [x] Migrate color scheme from blue to red/orange/yellow
+- [x] Enhance date picker visual design (yellow theme)
+- [x] Fix 3-panel layout system (timeline/detail/tag)
+- [x] Add fixed space reservation for tags
+- [x] Scale up tag sizes by 3 levels
+- [x] Fix time display wrapping in timeline cards
+- [x] Move duration/AI actions to bottom right of cards
+
+### 2025-01-16 - Tag Management System
 - [x] Create tag management panel with drag-and-drop
 - [x] Implement 72-color palette system
 - [x] Add tag suggestions (top 8 most-used)
