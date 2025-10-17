@@ -67,315 +67,305 @@ struct SimpleEventDetailView: View {
                     Spacer()
                         .frame(height: topHeaderHeight)
 
-                    HStack(alignment: .top, spacing: 0) {
-                        // Left spacer - tap to close
-                        Spacer()
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                withAnimation {
-                                    appState.selectedEvent = nil
-                                }
-                            }
-
-                        // Content positioned on the right side of the detail panel
-                        VStack(alignment: .leading, spacing: 24) {
-                            // Close button at top right
-                            HStack {
-                                Spacer()
-                                Button(action: {
-                                    withAnimation {
-                                        appState.selectedEvent = nil
-                                    }
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-
-                            // Event title (editable)
-                            TextEditor(text: $editedTitle)
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(minHeight: 60)
-                                .scrollContentBackground(.hidden)
-                                .background(Color.clear)
-                                .onChange(of: editedTitle) { newValue in
-                                    updateEventTitle(newValue)
-                                }
-
-                            // Time range (editable with DatePickers)
-                            timeRangeSection
-
-                            // Location (read-only, click to open Calendar)
-                            if let location = event.location, !location.isEmpty {
-                                Button(action: {
-                                    openInCalendarApp()
-                                }) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "mappin.circle")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.secondary)
-
-                                        Text(location)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white)
-
-                                        Spacer()
-
-                                        Image(systemName: "arrow.right.circle")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary.opacity(0.5))
-                                    }
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-
-                            // Calendar name with color (read-only)
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(event.calendarColor.map { Color(cgColor: $0) } ?? Color.gray)
-                                    .frame(width: 12, height: 12)
-
-                                Text(event.calendarName)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                            }
-
-                            // Attendees (read-only, click to open Calendar)
-                            if !event.attendees.isEmpty {
-                                Button(action: {
-                                    openInCalendarApp()
-                                }) {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "person.2")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(.secondary)
-
-                                            Text("Attendees (\(event.attendees.count))")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-
-                                            Spacer()
-
-                                            Image(systemName: "arrow.right.circle")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary.opacity(0.5))
-                                        }
-
-                                        ForEach(event.attendees.prefix(3), id: \.self) { attendee in
-                                            Text(attendee)
-                                                .font(.system(size: 14))
-                                                .foregroundColor(.white)
-                                                .padding(.leading, 22)
-                                        }
-
-                                        if event.attendees.count > 3 {
-                                            Text("+\(event.attendees.count - 3) more")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                                .padding(.leading, 22)
-                                        }
-                                    }
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-
-                            // Notes (read-only, click to open Calendar)
-                            if let notes = event.notes, !notes.isEmpty {
-                                Button(action: {
-                                    openInCalendarApp()
-                                }) {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "note.text")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(.secondary)
-
-                                            Text("Notes")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-
-                                            Spacer()
-
-                                            Image(systemName: "arrow.right.circle")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary.opacity(0.5))
-                                        }
-
-                                        Text(notes)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white)
-                                            .lineLimit(3)
-                                            .padding(.leading, 22)
-                                    }
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-
-                            // URL (clickable)
-                            if let url = event.url {
-                                Button(action: {
-                                    NSWorkspace.shared.open(url)
-                                }) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "link")
-                                            .font(.system(size: 14))
-                                        Text("Open Link")
-                                            .font(.system(size: 14, weight: .medium))
-                                    }
-                                    .foregroundColor(.orange)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-
-                            // Tags section
-                            VStack(alignment: .leading, spacing: 12) {
-                                // Existing tags in flowing layout
-                                if !eventTags.isEmpty {
-                                    FlowLayout(spacing: 8) {
-                                        ForEach(eventTags, id: \.self) { tag in
-                                            let tagColor = tagColorManager.getColorForTag(tag) ?? .gray
-                                            HStack(spacing: 4) {
-                                                Text("#\(tag)")
-                                                    .font(.system(size: 12))
-                                                    .foregroundColor(.white)
-
-                                                // Remove tag button
-                                                Button(action: {
-                                                    removeTag(tag)
-                                                }) {
-                                                    Image(systemName: "xmark.circle.fill")
-                                                        .font(.system(size: 12))
-                                                        .foregroundColor(.white.opacity(0.6))
-                                                }
-                                                .buttonStyle(PlainButtonStyle())
-                                            }
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 5)
-                                            .background(
-                                                Capsule()
-                                                    .fill(tagColor.opacity(0.2))
-                                            )
-                                            .overlay(
-                                                Capsule()
-                                                    .stroke(tagColor.opacity(0.4), lineWidth: 1)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Tag input field
-                                TextField("Type #tag to add...", text: $tagInput)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white)
-                                    .textFieldStyle(PlainTextFieldStyle())
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.white.opacity(0.05))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                                    )
-                                    .onSubmit {
-                                        addTag()
-                                    }
-                                    .onChange(of: tagInput) { newValue in
-                                        // Auto-add tag when space or comma is typed
-                                        if newValue.contains(" ") || newValue.contains(",") {
-                                            addTag()
-                                        }
-                                    }
-
-                                // Tag suggestions (always show when empty - top 8, otherwise filtered)
-                                if !tagSuggestions.isEmpty {
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 8) {
-                                            ForEach(tagSuggestions, id: \.self) { suggestion in
-                                                Button(action: {
-                                                    tagInput = suggestion
-                                                    addTag()
-                                                }) {
-                                                    Text("#\(suggestion)")
-                                                        .font(.system(size: 11))
-                                                        .foregroundColor(.white.opacity(0.7))
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 4)
-                                                        .background(
-                                                            Capsule()
-                                                                .fill(Color.white.opacity(0.1))
-                                                        )
-                                                }
-                                                .buttonStyle(PlainButtonStyle())
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // AI Generated indicator
-                            if event.isAIGenerated {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.orange)
-
-                                    Text("AI Generated")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.orange)
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.orange.opacity(0.1))
-                                )
-                            }
-
-                            // Delete button
-                            Button(action: {
-                                deleteEvent()
-                            }) {
-                                HStack {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 14))
-                                    Text("Delete Event")
-                                        .font(.system(size: 14, weight: .medium))
-                                }
-                                .foregroundColor(.red)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                        .padding(32)
-                        .padding(.bottom, 60) // Extra bottom padding for comfortable scrolling
-                    }
-                    .frame(maxWidth: .infinity) // Take full width of container
-                    .background(Color(hex: "#1C1C1E")) // Same as main timeline background
-                    .overlay(
-                        // Inset shadow on all sides using event brown color
-                        Rectangle()
-                            .stroke(Color.clear, lineWidth: 0)
-                            .shadow(color: Color(hex: "#8B7355").opacity(0.3), radius: 8, x: 0, y: 0)
-                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 2, y: 0)  // Right
-                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: -2, y: 0) // Left
-                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 0, y: 2)  // Bottom
-                            .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 0, y: -2) // Top
-                    )
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.8).combined(with: .opacity),
-                        removal: .scale(scale: 0.9).combined(with: .opacity)
-                    ))
+                    mainContentSection(topHeaderHeight: topHeaderHeight)
                 }
                 .frame(minHeight: geometry.size.height) // Ensure content takes full height
             }
         }
         .background(Color(hex: "#1C1C1E").opacity(0.5))
         .transition(.opacity)
+        .onReceive(CalendarService.shared.objectWillChange) { _ in
+            // Update eventTags when calendar events are refreshed
+            DispatchQueue.main.async {
+                if let updatedEvent = CalendarService.shared.events.first(where: { $0.id == event.id }) {
+                    eventTags = Self.extractTags(from: updatedEvent.notes)
+                }
+            }
+        }
+    }
+
+    // MARK: - Main Content Section
+
+    @ViewBuilder
+    private func mainContentSection(topHeaderHeight: CGFloat) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            // Left spacer - tap to close
+            Spacer()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation {
+                        appState.selectedEvent = nil
+                    }
+                }
+
+            // Content positioned on the right side of the detail panel
+            VStack(alignment: .leading, spacing: 24) {
+                closeButton
+                eventTitleEditor
+                timeRangeSection
+                eventMetadataSection
+                tagsSection
+                aiGeneratedIndicator
+                deleteButton
+            }
+            .padding(32)
+            .padding(.bottom, 60) // Extra bottom padding for comfortable scrolling
+        }
+        .frame(maxWidth: .infinity) // Take full width of container
+        .background(Color(hex: "#1C1C1E")) // Same as main timeline background
+        .overlay(
+            // Inset shadow on all sides using event brown color
+            Rectangle()
+                .stroke(Color.clear, lineWidth: 0)
+                .shadow(color: Color(hex: "#8B7355").opacity(0.3), radius: 8, x: 0, y: 0)
+                .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 2, y: 0)  // Right
+                .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: -2, y: 0) // Left
+                .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 0, y: 2)  // Bottom
+                .shadow(color: Color(hex: "#8B7355").opacity(0.2), radius: 4, x: 0, y: -2) // Top
+        )
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.8).combined(with: .opacity),
+            removal: .scale(scale: 0.9).combined(with: .opacity)
+        ))
+    }
+
+    @ViewBuilder
+    private var aiGeneratedIndicator: some View {
+        if event.isAIGenerated {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12))
+                    .foregroundColor(.orange)
+
+                Text("AI Generated")
+                    .font(.system(size: 12))
+                    .foregroundColor(.orange)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.orange.opacity(0.1))
+            )
+        }
+    }
+
+    private var deleteButton: some View {
+        Button(action: {
+            deleteEvent()
+        }) {
+            HStack {
+                Image(systemName: "trash")
+                    .font(.system(size: 14))
+                Text("Delete Event")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .foregroundColor(.red)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    @ViewBuilder
+    private var eventMetadataSection: some View {
+        // Location
+        if let location = event.location, !location.isEmpty {
+            Button(action: openInCalendarApp) {
+                HStack(spacing: 8) {
+                    Image(systemName: "mappin.circle")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    Text(location)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Image(systemName: "arrow.right.circle")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+
+        // Calendar name
+        HStack(spacing: 8) {
+            Circle()
+                .fill(event.calendarColor.map { Color(cgColor: $0) } ?? Color.gray)
+                .frame(width: 12, height: 12)
+            Text(event.calendarName)
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+
+        // Attendees
+        if !event.attendees.isEmpty {
+            Button(action: openInCalendarApp) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.2")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                        Text("Attendees (\(event.attendees.count))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Image(systemName: "arrow.right.circle")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
+                    ForEach(event.attendees.prefix(3), id: \.self) { attendee in
+                        Text(attendee)
+                            .font(.system(size: 14))
+                            .foregroundColor(.white)
+                            .padding(.leading, 22)
+                    }
+                    if event.attendees.count > 3 {
+                        Text("+\(event.attendees.count - 3) more")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 22)
+                    }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+
+        // Notes
+        if let notes = event.notes, !notes.isEmpty {
+            Button(action: openInCalendarApp) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "note.text")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                        Text("Notes")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Image(systemName: "arrow.right.circle")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
+                    Text(notes)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                        .lineLimit(3)
+                        .padding(.leading, 22)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+
+        // URL
+        if let url = event.url {
+            Button(action: { NSWorkspace.shared.open(url) }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "link")
+                        .font(.system(size: 14))
+                    Text("Open Link")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.orange)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+    }
+
+    private var tagsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Existing tags
+            if !eventTags.isEmpty {
+                FlowLayout(spacing: 8) {
+                    ForEach(eventTags, id: \.self) { tag in
+                        let tagColor = tagColorManager.getColorForTag(tag) ?? .gray
+                        HStack(spacing: 4) {
+                            Text("#\(tag)")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                            Button(action: { removeTag(tag) }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(tagColor.opacity(0.2)))
+                        .overlay(Capsule().stroke(tagColor.opacity(0.4), lineWidth: 1))
+                    }
+                }
+            }
+
+            // Tag input
+            TextField("Type #tag to add... (press Enter)", text: $tagInput)
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+                .textFieldStyle(PlainTextFieldStyle())
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                .onSubmit {
+                    addTag()
+                }
+                .onChange(of: tagInput) { newValue in
+                    if newValue.contains(" ") || newValue.contains(",") {
+                        addTag()
+                    }
+                }
+
+            // Tag suggestions
+            if !tagSuggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tagSuggestions, id: \.self) { suggestion in
+                            Button(action: {
+                                tagInput = suggestion
+                                addTag()
+                            }) {
+                                Text("#\(suggestion)")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - UI Components
+
+    private var closeButton: some View {
+        HStack {
+            Spacer()
+            Button(action: {
+                withAnimation {
+                    appState.selectedEvent = nil
+                }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+    }
+
+    private var eventTitleEditor: some View {
+        TextEditor(text: $editedTitle)
+            .font(.system(size: 18, weight: .medium))
+            .foregroundColor(.white)
+            .frame(minHeight: 60)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .onChange(of: editedTitle) { newValue in
+                updateEventTitle(newValue)
+            }
     }
 
     // MARK: - Helper Methods
@@ -550,9 +540,9 @@ struct SimpleEventDetailView: View {
 
                 // Refresh calendar events to get updated data
                 await MainActor.run {
-                    // Ensure all tags have colors assigned AFTER successful save
+                    // Register all tags and ensure colors are assigned AFTER successful save
                     for tag in eventTags {
-                        tagColorManager.ensureColorForTag(tag)
+                        tagColorManager.registerTag(tag)
                     }
 
                     // Refresh the event's date to update the calendar service
@@ -624,8 +614,7 @@ struct SimpleEventDetailView: View {
             DatePicker("", selection: $editedStartTime)
                 .datePickerStyle(.compact)
                 .labelsHidden()
-                .font(.system(size: 13, weight: .semibold))
-                .scaleEffect(x: 1.15, y: 1.0, anchor: .leading)
+                .font(.system(size: 14, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .onChange(of: editedStartTime) { newValue in
@@ -633,8 +622,25 @@ struct SimpleEventDetailView: View {
                 }
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.08)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.25), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.yellow.opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.yellow.opacity(0.4),
+                            Color.yellow.opacity(0.2)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .shadow(color: Color.yellow.opacity(0.15), radius: 8, x: 0, y: 2)
     }
 
     private var endTimeCard: some View {
@@ -651,8 +657,7 @@ struct SimpleEventDetailView: View {
             DatePicker("", selection: $editedEndTime)
                 .datePickerStyle(.compact)
                 .labelsHidden()
-                .font(.system(size: 13, weight: .semibold))
-                .scaleEffect(x: 1.15, y: 1.0, anchor: .leading)
+                .font(.system(size: 14, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .onChange(of: editedEndTime) { newValue in
@@ -660,8 +665,25 @@ struct SimpleEventDetailView: View {
                 }
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.08)))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.25), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.yellow.opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.yellow.opacity(0.4),
+                            Color.yellow.opacity(0.2)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .shadow(color: Color.yellow.opacity(0.15), radius: 8, x: 0, y: 2)
     }
 
     private var durationDisplay: some View {

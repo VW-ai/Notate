@@ -398,6 +398,15 @@ struct StretchableEventCard: View {
                 )
         )
         .shadowSubtle(darkMode: true)
+        .scaleEffect(tagDragState.lastTaggedEventId == event.id ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tagDragState.lastTaggedEventId)
+        .overlay(
+            // Success flash animation when tag is added
+            RoundedRectangle(cornerRadius: NotateDesignSystem.CornerRadius.medium)
+                .stroke(Color.notateSuccessEmerald, lineWidth: 3)
+                .opacity(tagDragState.lastTaggedEventId == event.id ? 0.8 : 0.0)
+                .animation(.easeOut(duration: 0.4), value: tagDragState.lastTaggedEventId)
+        )
         .onTapGesture {
             // If dragging tags, assign them; otherwise open detail
             if tagDragState.isDragging {

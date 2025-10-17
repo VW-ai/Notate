@@ -75,8 +75,16 @@ struct PieceTimelineCard: View {
                     .stroke(isSelected ? Color.notateNeuralBlue : Color(hex: "#7CB342").opacity(0.4), lineWidth: 1.5)
             )
             .shadowSubtle(darkMode: true)
-            .scaleEffect(isHovering ? 1.02 : 1.0)
+            .scaleEffect(tagDragState.lastTaggedEntryId == piece.id ? 1.05 : (isHovering ? 1.02 : 1.0))
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tagDragState.lastTaggedEntryId)
             .animation(.easeOut(duration: 0.15), value: isHovering)
+            .overlay(
+                // Success flash animation when tag is added
+                RoundedRectangle(cornerRadius: NotateDesignSystem.CornerRadius.medium)
+                    .stroke(Color.notateSuccessEmerald, lineWidth: 3)
+                    .opacity(tagDragState.lastTaggedEntryId == piece.id ? 0.8 : 0.0)
+                    .animation(.easeOut(duration: 0.4), value: tagDragState.lastTaggedEntryId)
+            )
         }
         .buttonStyle(PlainButtonStyle())
         .onHover { hovering in

@@ -118,7 +118,11 @@
 ## Bugs to Fix
 
 ### Current Issues
-- None known - system is stable
+- [ ] **Tag text input display delay in detail view**
+  - There is a noticeable delay when typing in the tag input field
+  - Text appears after a short lag rather than immediately
+  - Affects user experience when adding tags quickly
+  - Need to investigate TextField rendering performance
 
 ### Edge Cases to Test
 - [ ] Very long tag names (truncation)

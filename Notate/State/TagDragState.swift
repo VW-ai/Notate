@@ -11,6 +11,8 @@ class TagDragState: ObservableObject {
     @Published var isDragging: Bool = false
     @Published var draggingTags: [String] = []
     @Published var cursorPosition: CGPoint = .zero
+    @Published var lastTaggedEntryId: String? = nil
+    @Published var lastTaggedEventId: String? = nil
 
     private var mouseTrackingMonitor: Any?
 
@@ -80,13 +82,41 @@ class TagDragState: ObservableObject {
 
         if let entry = appState.entries.first(where: { $0.id == entryId }) {
             var updatedEntry = entry
+            var addedTags: [String] = []
+
             for tag in draggingTags {
                 if !updatedEntry.tags.contains(tag) {
                     updatedEntry.tags.append(tag)
+                    addedTags.append(tag)
                 }
             }
-            appState.updateEntry(updatedEntry)
-            print("✅ Assigned \(draggingTags.count) tag(s) to entry")
+
+            if !addedTags.isEmpty {
+                appState.updateEntry(updatedEntry)
+
+                // Register all added tags with TagColorManager
+                for tag in addedTags {
+                    TagColorManager.shared.registerTag(tag)
+                }
+
+                // Update selected entry if this is the currently selected one
+                if appState.selectedEntry?.id == entryId {
+                    appState.selectedEntry = updatedEntry
+                }
+
+                // Trigger animation feedback
+                lastTaggedEntryId = entryId
+                Task {
+                    try? await Task.sleep(nanoseconds: 600_000_000) // 0.6 seconds
+                    await MainActor.run {
+                        lastTaggedEntryId = nil
+                    }
+                }
+
+                print("✅ Assigned \(addedTags.count) tag(s) to entry: \(addedTags.joined(separator: ", "))")
+            } else {
+                print("ℹ️ All tags already exist on entry")
+            }
         }
 
         stopDragging()
@@ -97,34 +127,54 @@ class TagDragState: ObservableObject {
 
         if let event = calendarService.events.first(where: { $0.id == eventId }) {
             var existingTags = SimpleEventDetailView.extractTags(from: event.notes)
+            var addedTags: [String] = []
 
             for tag in draggingTags {
                 if !existingTags.contains(tag) {
                     existingTags.append(tag)
+                    addedTags.append(tag)
                 }
             }
 
-            Task {
-                let toolService = ToolService()
-                let tagsString = "[tags: \(existingTags.joined(separator: ", "))]"
-                let existingNotes = SimpleEventDetailView.removeTagsFromNotes(event.notes)
-                let newNotes = existingNotes.isEmpty ? tagsString : "\(existingNotes)\n\(tagsString)"
+            if !addedTags.isEmpty {
+                Task {
+                    let toolService = ToolService()
+                    let tagsString = "[tags: \(existingTags.joined(separator: ", "))]"
+                    let existingNotes = SimpleEventDetailView.removeTagsFromNotes(event.notes)
+                    let newNotes = existingNotes.isEmpty ? tagsString : "\(existingNotes)\n\(tagsString)"
 
-                do {
-                    try await toolService.updateCalendarEvent(
-                        eventId: eventId,
-                        title: nil,
-                        notes: newNotes,
-                        startDate: nil
-                    )
-                    await MainActor.run {
-                        calendarService.fetchEvents(for: event.startTime)
-                        calendarService.objectWillChange.send()
+                    do {
+                        try await toolService.updateCalendarEvent(
+                            eventId: eventId,
+                            title: nil,
+                            notes: newNotes,
+                            startDate: nil
+                        )
+                        await MainActor.run {
+                            // Register all added tags with TagColorManager
+                            for tag in addedTags {
+                                TagColorManager.shared.registerTag(tag)
+                            }
+
+                            calendarService.fetchEvents(for: event.startTime)
+                            calendarService.objectWillChange.send()
+
+                            // Trigger animation feedback
+                            lastTaggedEventId = eventId
+                            Task {
+                                try? await Task.sleep(nanoseconds: 600_000_000) // 0.6 seconds
+                                await MainActor.run {
+                                    lastTaggedEventId = nil
+                                }
+                            }
+                        }
+                        print("✅ Assigned \(addedTags.count) tag(s) to event: \(addedTags.joined(separator: ", "))")
+                    } catch {
+                        print("❌ Failed to assign tags to event: \(error)")
                     }
-                    print("✅ Assigned \(draggingTags.count) tag(s) to event")
-                } catch {
-                    print("❌ Failed to assign tags to event: \(error)")
                 }
+            } else {
+                print("ℹ️ All tags already exist on event")
             }
         }
 

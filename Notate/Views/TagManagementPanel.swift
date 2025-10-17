@@ -145,15 +145,22 @@ struct TagManagementPanel: View {
             }
         }
         .onChange(of: appState.entries.count) { _ in
-            // Only update cache when actual data changes
             cachedTagCounts = tagCounts
         }
         .onChange(of: calendarService.events.count) { _ in
-            // Only update cache when actual data changes
             cachedTagCounts = tagCounts
         }
         .onChange(of: tagColorManager.knownTags) { _ in
-            // Update cache when tags are added/removed
+            cachedTagCounts = tagCounts
+        }
+        .onChange(of: appState.entries.map { $0.tags.joined(separator: ",") }.joined(separator: ";")) { _ in
+            // Update cache when tags are modified on entries (using string hash for comparison)
+            cachedTagCounts = tagCounts
+        }
+        .onChange(of: calendarService.events.map { event in
+            SimpleEventDetailView.extractTags(from: event.notes).joined(separator: ",")
+        }.joined(separator: ";")) { _ in
+            // Update cache when tags are modified on events (using string hash for comparison)
             cachedTagCounts = tagCounts
         }
     }

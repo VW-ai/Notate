@@ -171,7 +171,7 @@ struct SimpleEntryDetailView: View {
                                 }
 
                                 // Tag input field
-                                TextField("Type #tag to add...", text: $tagInput)
+                                TextField("Type #tag to add... (press Enter)", text: $tagInput)
                                     .font(.system(size: 12))
                                     .foregroundColor(.white)
                                     .textFieldStyle(PlainTextFieldStyle())
@@ -575,8 +575,8 @@ struct SimpleEntryDetailView: View {
         updatedEntry.tags.append(cleanedTag)
         appState.updateEntry(updatedEntry)
 
-        // Ensure tag has a color assigned AFTER successful update
-        tagColorManager.ensureColorForTag(cleanedTag)
+        // Register tag and ensure color is assigned AFTER successful update
+        tagColorManager.registerTag(cleanedTag)
 
         // Update the selected entry to trigger UI refresh
         if let refreshedEntry = appState.databaseManager.entries.first(where: { $0.id == entry.id }) {
