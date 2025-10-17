@@ -205,7 +205,7 @@ struct TimelineView: View {
                 }) {
                     Image(systemName: showTagPanel ? "tag.fill" : "tag")
                         .font(.system(size: 18))
-                        .foregroundColor(showTagPanel ? .blue : .secondary)
+                        .foregroundColor(showTagPanel ? Color(hex: "#FFB84D") : .secondary)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(PlainButtonStyle())

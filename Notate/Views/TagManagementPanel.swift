@@ -45,31 +45,31 @@ struct TagManagementPanel: View {
 
         var fontSize: CGFloat {
             switch self {
-            case .extraLarge: return 18
-            case .large: return 16
-            case .medium: return 14
-            case .small: return 12
-            case .extraSmall: return 11
+            case .extraLarge: return 28
+            case .large: return 24
+            case .medium: return 20
+            case .small: return 18
+            case .extraSmall: return 16
             }
         }
 
         var fontWeight: Font.Weight {
             switch self {
-            case .extraLarge: return .semibold
-            case .large: return .medium
-            case .medium: return .medium
-            case .small: return .regular
-            case .extraSmall: return .regular
+            case .extraLarge: return .bold
+            case .large: return .semibold
+            case .medium: return .semibold
+            case .small: return .medium
+            case .extraSmall: return .medium
             }
         }
 
         var padding: (horizontal: CGFloat, vertical: CGFloat) {
             switch self {
-            case .extraLarge: return (14, 8)
-            case .large: return (12, 7)
-            case .medium: return (10, 6)
-            case .small: return (8, 5)
-            case .extraSmall: return (7, 4)
+            case .extraLarge: return (20, 12)
+            case .large: return (18, 10)
+            case .medium: return (16, 9)
+            case .small: return (14, 8)
+            case .extraSmall: return (12, 7)
             }
         }
     }
@@ -215,7 +215,7 @@ struct TagManagementPanel: View {
                 }) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.blue)
+                        .foregroundColor(Color(hex: "#FFB84D"))
                 }
                 .buttonStyle(PlainButtonStyle())
             }
