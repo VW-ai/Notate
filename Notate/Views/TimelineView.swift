@@ -7,12 +7,18 @@ struct TimelineView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var calendarService = CalendarService.shared
     @StateObject private var tagDragState = TagDragState.shared
+    @StateObject private var operatorState = OperatorState.shared
     @State private var selectedDate = Date()
     @State private var showTagPanel = true // Show tag panel by default
 
     // Track if detail panel is shown
     private var isDetailPanelPresented: Bool {
         appState.selectedEntry != nil || appState.selectedEvent != nil
+    }
+
+    // Track if creation detail panel is shown
+    private var isCreationPanelPresented: Bool {
+        operatorState.creationMode != nil
     }
 
     // Header height constants
@@ -55,40 +61,55 @@ struct TimelineView: View {
                         .frame(width: geometry.size.width / 2)
                     }
 
-                    // Detail Panel - occupies the quarter immediately left of timeline
-                    if isDetailPanelPresented {
-                        HStack(spacing: 0) {
-                            // Left quarter - empty space (for tag panel)
-                            Spacer()
-                                .frame(width: geometry.size.width * 0.25)
+                    // Detail Panel Area - occupies the quarter immediately left of timeline
+                    // Contains: Detail view (top 70%) + Operator view (bottom 30%)
+                    HStack(spacing: 0) {
+                        // Left quarter - empty space (for tag panel)
+                        Spacer()
+                            .frame(width: geometry.size.width * 0.25)
 
-                            // Second quarter - detail view
+                        // Second quarter - detail + operator panel area
+                        VStack(spacing: 0) {
+                            // Top 70%: Detail view or creation detail
                             ZStack {
                                 Color(hex: "#1C1C1E")
 
-                                if let selectedEntry = appState.selectedEntry {
-                                    // Show entry detail
-                                    SimpleEntryDetailView(entry: selectedEntry)
+                                if isCreationPanelPresented {
+                                    // Creation detail view (higher priority)
+                                    CreationDetailView()
                                         .environmentObject(appState)
-                                        .id(selectedEntry.id) // Force new view when entry changes
-                                } else if let selectedEvent = appState.selectedEvent {
-                                    // Show event detail
-                                    SimpleEventDetailView(event: selectedEvent)
-                                        .environmentObject(appState)
-                                        .id(selectedEvent.id) // Force new view when event changes
+                                } else if isDetailPanelPresented {
+                                    // Regular detail view
+                                    if let selectedEntry = appState.selectedEntry {
+                                        SimpleEntryDetailView(entry: selectedEntry)
+                                            .environmentObject(appState)
+                                            .id(selectedEntry.id)
+                                    } else if let selectedEvent = appState.selectedEvent {
+                                        SimpleEventDetailView(event: selectedEvent)
+                                            .environmentObject(appState)
+                                            .id(selectedEvent.id)
+                                    }
                                 }
                             }
-                            .frame(width: geometry.size.width * 0.25)
+                            .frame(height: geometry.size.height * 0.7)
                             .transition(.move(edge: .leading))
 
-                            Spacer() // Fills the rest (timeline's space - right half)
+                            // Bottom 30%: Operator view (always visible)
+                            OperatorView()
+                                .frame(height: geometry.size.height * 0.3)
+                                .environmentObject(appState)
                         }
+                        .frame(width: geometry.size.width * 0.25)
+
+                        Spacer() // Fills the rest (timeline's space - right half)
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: isDetailPanelPresented)
+                .animation(.easeInOut(duration: 0.3), value: isCreationPanelPresented)
             }
 
             // Tag Management Panel (overlay on left side, behind detail panel)
+            // Uses full vertical height (100%)
             if showTagPanel {
                 GeometryReader { geometry in
                     HStack(spacing: 0) {
