@@ -98,29 +98,30 @@ class AutonomousAIAgent: ObservableObject {
         print("   - Location: \(extractedInfo.locationInfo ?? "none")")
         print("   - Action: \(extractedInfo.actionIntent ?? "none")")
 
-        // 2. Create reminder action for TODOs
-        if contentExtractor.shouldCreateReminder(extractedInfo, entryType: .todo) {
-            print("🤖 [Agent] Should create reminder: YES")
-            if let reminderAction = await createReminderAction(from: entry.content, extractedInfo: extractedInfo) {
-                print("🤖 [Agent] Reminder action created: \(reminderAction.id)")
-                actions.append(reminderAction)
-            }
-        } else {
-            print("🤖 [Agent] Should create reminder: NO")
-        }
-
-        // 3. Create calendar action if it has time information
+        // 2. Check if we should create calendar event (priority over reminder)
+        var calendarCreated = false
         if contentExtractor.shouldCreateCalendarEvent(extractedInfo) {
             print("🤖 [Agent] Should create calendar event: YES")
             if let calendarAction = await createCalendarAction(from: entry.content, extractedInfo: extractedInfo) {
                 print("🤖 [Agent] Calendar action created: \(calendarAction.id)")
-                print("🤖 [Agent] Total actions before append: \(actions.count)")
                 actions.append(calendarAction)
-                print("🤖 [Agent] Total actions after append: \(actions.count)")
-                print("🤖 [Agent] All action types: \(actions.map { $0.type.displayName })")
+                calendarCreated = true
             }
         } else {
             print("🤖 [Agent] Should create calendar event: NO (timeInfo=\(extractedInfo.timeInfo ?? "nil"), actionIntent=\(extractedInfo.actionIntent ?? "nil"))")
+        }
+
+        // 3. Create reminder action ONLY if calendar was NOT created
+        if !calendarCreated && contentExtractor.shouldCreateReminder(extractedInfo, entryType: .todo) {
+            print("🤖 [Agent] Should create reminder: YES (no calendar event)")
+            if let reminderAction = await createReminderAction(from: entry.content, extractedInfo: extractedInfo) {
+                print("🤖 [Agent] Reminder action created: \(reminderAction.id)")
+                actions.append(reminderAction)
+            }
+        } else if calendarCreated {
+            print("🤖 [Agent] Skipping reminder - calendar event was created")
+        } else {
+            print("🤖 [Agent] Should create reminder: NO")
         }
 
         // 4. Create contact action if we have contact info
@@ -473,10 +474,6 @@ class AutonomousAIAgent: ObservableObject {
             databaseManager.updateAIActionData(entryId, actionId: action.id, reverseData: reverseData)
 
             // Don't open maps automatically - only when user clicks jump
-            return true
-
-        case .webSearch:
-            // Web search doesn't require system integration
             return true
         }
     }

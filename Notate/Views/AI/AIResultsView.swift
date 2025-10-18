@@ -323,7 +323,6 @@ extension AIActionType {
         case .calendar: return "calendar.circle"
         case .contacts: return "person.circle"
         case .maps: return "map.circle"
-        case .webSearch: return "magnifyingglass.circle"
         }
     }
 
@@ -333,7 +332,6 @@ extension AIActionType {
         case .calendar: return .red
         case .contacts: return .green
         case .maps: return .orange
-        case .webSearch: return .purple
         }
     }
 }

@@ -152,8 +152,6 @@ struct PieceTimelineCard: View {
             return Image(systemName: "person.crop.circle")
         case .maps:
             return Image(systemName: "map.fill")
-        case .webSearch:
-            return Image(systemName: "magnifyingglass")
         }
     }
 
@@ -167,8 +165,6 @@ struct PieceTimelineCard: View {
             return .notateNeuralBlue
         case .maps:
             return .notateSuccessEmerald
-        case .webSearch:
-            return .notateThoughtPurple
         }
     }
 }

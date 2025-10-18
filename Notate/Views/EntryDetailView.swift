@@ -443,7 +443,7 @@ struct EntryDetailView: View {
             }
 
             // Revert button (only when executed and reversible)
-            if action.status == .executed && action.reversible && action.type != .webSearch {
+            if action.status == .executed && action.reversible {
                 Button(action: {
                     revertAction(action, for: entry)
                 }) {
@@ -717,54 +717,6 @@ struct EntryDetailView: View {
 
             // Don't open maps automatically - only when user clicks jump
             return true
-
-        case .webSearch:
-            // Extract search query
-            let query = action.data["query"]?.stringValue ?? entry.content
-
-            // Perform AI-powered web search analysis
-            let searchResult = try await performAIWebSearch(query: query, for: entry)
-            return searchResult
-        }
-    }
-
-    private func performAIWebSearch(query: String, for entry: Entry) async throws -> Bool {
-        // Use centralized prompt from PromptManager
-        let searchPrompt = PromptManager.webSearchPrompt(query: query)
-
-        do {
-            let aiResponse = try await appState.aiService.quickExtraction(searchPrompt)
-
-            // Create comprehensive research results
-            let researchResults = ResearchResults(
-                content: aiResponse,
-                suggestions: [],
-                generatedAt: Date(),
-                researchCost: 0.02, // Estimate for web search + AI analysis
-                processingTimeMs: 0
-            )
-
-            // Update the entry with enhanced research
-            var updatedMetadata = entry.aiMetadata ?? AIMetadata()
-            updatedMetadata.researchResults = researchResults
-
-            // Save updated metadata to database
-            await MainActor.run {
-                appState.databaseManager.updateEntryAIMetadata(entry.id, metadata: updatedMetadata)
-            }
-
-            // Also open the search in browser for user reference
-            if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-               let url = URL(string: "https://www.google.com/search?q=\(encodedQuery)") {
-                await MainActor.run {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-
-            return true
-        } catch {
-            print("❌ Web search AI analysis failed: \(error)")
-            return false
         }
     }
 
@@ -910,10 +862,6 @@ struct EntryDetailView: View {
                 case .maps:
                     // Maps doesn't create anything, so nothing to revert
                     break
-
-                case .webSearch:
-                    // Web search doesn't create anything, so nothing to revert
-                    break
                 }
 
                 // Update action status to reversed
@@ -1044,8 +992,6 @@ extension AIActionType {
             return "person.crop.circle"
         case .maps:
             return "map"
-        case .webSearch:
-            return "magnifyingglass"
         }
     }
 }
@@ -1136,8 +1082,6 @@ extension EntryDetailView {
             3. Toggle it ON
             4. Return to Notate and try again
             """
-        case .webSearch:
-            return // Web search doesn't need permissions
         }
 
         alert.informativeText = instructions

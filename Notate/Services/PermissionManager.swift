@@ -180,8 +180,8 @@ class PermissionManager: ObservableObject {
             return calendarPermission
         case .contacts:
             return contactsPermission
-        case .maps, .webSearch:
-            return .granted // These don't require special permissions
+        case .maps:
+            return .granted // Maps don't require special permissions
         }
     }
 
@@ -193,8 +193,8 @@ class PermissionManager: ObservableObject {
             return await requestCalendarPermission()
         case .contacts:
             return await requestContactsPermission()
-        case .maps, .webSearch:
-            return true // These don't require special permissions
+        case .maps:
+            return true // Maps don't require special permissions
         }
     }
 
@@ -210,7 +210,7 @@ class PermissionManager: ObservableObject {
             settingsPath = "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"
         case .contacts:
             settingsPath = "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts"
-        case .maps, .webSearch:
+        case .maps:
             return // No special permissions needed
         }
 
@@ -256,7 +256,7 @@ class PermissionManager: ObservableObject {
                 ],
                 privacyNote: "Notate only creates new contacts and doesn't access existing contact information."
             )
-        case .maps, .webSearch:
+        case .maps:
             return PermissionGuidance(
                 title: "No Permission Required",
                 message: "This action doesn't require special permissions.",

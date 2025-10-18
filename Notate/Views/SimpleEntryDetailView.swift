@@ -362,7 +362,7 @@ struct SimpleEntryDetailView: View {
                             print("✅ Restored contact: \(firstName) \(lastName ?? "")")
                         }
 
-                    case .maps, .webSearch:
+                    case .maps:
                         // Nothing to restore
                         break
                     }
@@ -405,7 +405,7 @@ struct SimpleEntryDetailView: View {
                             print("✅ Deleted contact: \(contactId)")
                         }
 
-                    case .maps, .webSearch:
+                    case .maps:
                         // Nothing to revert
                         break
                     }
@@ -654,8 +654,8 @@ struct AIActionSimpleRow: View {
                     }
                     .buttonStyle(PlainButtonStyle())
 
-                    // Revert button (only if reversible and not web search/maps)
-                    if action.reversible && action.type != .webSearch && action.type != .maps {
+                    // Revert button (only if reversible and not maps)
+                    if action.reversible && action.type != .maps {
                         Button(action: onRevert) {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.uturn.left")
@@ -684,7 +684,6 @@ struct AIActionSimpleRow: View {
         case .appleReminders: return "bell.fill"
         case .contacts: return "person.crop.circle"
         case .maps: return "map.fill"
-        case .webSearch: return "magnifyingglass"
         }
     }
 
@@ -694,7 +693,6 @@ struct AIActionSimpleRow: View {
         case .appleReminders: return .orange
         case .contacts: return Color(hex: "#FFB84D") // Light orange
         case .maps: return .yellow
-        case .webSearch: return Color(hex: "#FF6B35") // Red-orange
         }
     }
 
@@ -704,7 +702,6 @@ struct AIActionSimpleRow: View {
         case .appleReminders: return "Reminder"
         case .contacts: return "Contact"
         case .maps: return "Maps"
-        case .webSearch: return "Search"
         }
     }
 }
