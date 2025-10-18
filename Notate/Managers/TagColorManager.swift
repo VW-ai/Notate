@@ -11,6 +11,9 @@ class TagColorManager: ObservableObject {
     @Published private(set) var tagColors: [String: Color] = [:]
     @Published private(set) var knownTags: Set<String> = [] // Track all known tags, even those with 0 count
 
+    // Track next color index to assign (cycles through 0-71)
+    private var nextColorIndex: Int = 0
+
     // 72 distinct, visually pleasing colors
     private let colorPalette: [Color] = [
         // Reds & Pinks
@@ -58,10 +61,12 @@ class TagColorManager: ObservableObject {
 
     private let userDefaultsKey = "tagColorMapping"
     private let knownTagsKey = "knownTags"
+    private let colorIndexKey = "nextColorIndex"
 
     private init() {
         loadColors()
         loadKnownTags()
+        loadColorIndex()
     }
 
     // MARK: - Public Methods
@@ -71,14 +76,14 @@ class TagColorManager: ObservableObject {
         return tagColors[tag]
     }
 
-    /// Get color for a tag (assigns new random color if not exists)
+    /// Get color for a tag (assigns next sequential color if not exists)
     func colorForTag(_ tag: String) -> Color {
         if let existingColor = tagColors[tag] {
             return existingColor
         }
 
-        // Assign new random color
-        let newColor = getRandomUnusedColor()
+        // Assign next color in sequence (cycles through 72 colors)
+        let newColor = getNextColor()
         tagColors[tag] = newColor
 
         // Also register as known tag (but don't call registerTag to avoid recursion)
@@ -102,9 +107,9 @@ class TagColorManager: ObservableObject {
 
         if knownTags.insert(trimmed).inserted {
             saveKnownTags()
-            // Assign color immediately when registering
+            // Assign next sequential color immediately when registering
             if tagColors[trimmed] == nil {
-                let newColor = getRandomUnusedColor()
+                let newColor = getNextColor()
                 tagColors[trimmed] = newColor
                 saveColors()
             }
@@ -140,20 +145,17 @@ class TagColorManager: ObservableObject {
 
     // MARK: - Private Methods
 
-    private func getRandomUnusedColor() -> Color {
-        // Get colors that are not currently in use
-        let usedColors = Set(tagColors.values.map { $0.hexString })
-        let availableColors = colorPalette.filter { color in
-            !usedColors.contains(color.hexString)
-        }
+    /// Get next color in sequence (cycles through 72 colors)
+    private func getNextColor() -> Color {
+        let color = colorPalette[nextColorIndex]
 
-        // If all colors are used, just pick a random one from the full palette
-        if availableColors.isEmpty {
-            return colorPalette.randomElement() ?? Color.blue
-        }
+        // Increment and wrap around to cycle through colors
+        nextColorIndex = (nextColorIndex + 1) % colorPalette.count
 
-        // Return random available color
-        return availableColors.randomElement() ?? colorPalette.randomElement() ?? Color.blue
+        // Save the updated index
+        saveColorIndex()
+
+        return color
     }
 
     // MARK: - Persistence
@@ -183,6 +185,14 @@ class TagColorManager: ObservableObject {
             return
         }
         knownTags = Set(tagsArray)
+    }
+
+    private func saveColorIndex() {
+        UserDefaults.standard.set(nextColorIndex, forKey: colorIndexKey)
+    }
+
+    private func loadColorIndex() {
+        nextColorIndex = UserDefaults.standard.integer(forKey: colorIndexKey)
     }
 }
 
