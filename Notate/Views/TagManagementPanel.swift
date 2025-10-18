@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct TagManagementPanel: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var tagColorManager = TagColorManager.shared
+    @StateObject private var tagStore = TagStore.shared
     @StateObject private var calendarService = CalendarService.shared
     @StateObject private var tagDragState = TagDragState.shared
     @State private var newTagInput: String = ""
@@ -74,33 +75,20 @@ struct TagManagementPanel: View {
         }
     }
 
-    // Get all unique tags with their counts and percentiles (from BOTH entries AND events)
+    // Get all unique tags with their counts and percentiles from TagStore (universal, not date-dependent)
     private var tagCounts: [(tag: String, count: Int, percentile: Double)] {
-        // Count tags from entries
-        let entryTags = appState.entries.flatMap { $0.tags }
+        let counts = tagStore.tagCounts
 
-        // Count tags from calendar events
-        let eventTags = calendarService.events.flatMap { event in
-            SimpleEventDetailView.extractTags(from: event.notes)
-        }
-
-        // Combine both sources
-        let allTags = entryTags + eventTags
-
-        var counts: [String: Int] = [:]
-        for tag in allTags {
-            counts[tag, default: 0] += 1
-        }
-
-        // Include known tags with 0 count
+        // Include known tags with 0 count from TagColorManager
+        var allCounts = counts
         for knownTag in tagColorManager.getAllKnownTags() {
-            if counts[knownTag] == nil {
-                counts[knownTag] = 0
+            if allCounts[knownTag] == nil {
+                allCounts[knownTag] = 0
             }
         }
 
         // Sort by count descending
-        let sorted = counts
+        let sorted = allCounts
             .map { (tag: $0.key, count: $0.value) }
             .sorted { $0.count > $1.count }
 
@@ -144,23 +132,12 @@ struct TagManagementPanel: View {
                 return event
             }
         }
-        .onChange(of: appState.entries.count) { _ in
-            cachedTagCounts = tagCounts
-        }
-        .onChange(of: calendarService.events.count) { _ in
+        .onChange(of: tagStore.tagCounts.count) { _ in
+            // TagStore updates automatically when entries or events change
             cachedTagCounts = tagCounts
         }
         .onChange(of: tagColorManager.knownTags) { _ in
-            cachedTagCounts = tagCounts
-        }
-        .onChange(of: appState.entries.map { $0.tags.joined(separator: ",") }.joined(separator: ";")) { _ in
-            // Update cache when tags are modified on entries (using string hash for comparison)
-            cachedTagCounts = tagCounts
-        }
-        .onChange(of: calendarService.events.map { event in
-            SimpleEventDetailView.extractTags(from: event.notes).joined(separator: ",")
-        }.joined(separator: ";")) { _ in
-            // Update cache when tags are modified on events (using string hash for comparison)
+            // Update cache when new tags are registered
             cachedTagCounts = tagCounts
         }
     }

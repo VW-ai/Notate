@@ -25,37 +25,9 @@ struct SimpleEventDetailView: View {
         _eventTags = State(initialValue: Self.extractTags(from: event.notes))
     }
 
-    // Get all existing tags from all entries for suggestions
-    private var allExistingTags: [String] {
-        let allTags = appState.entries.flatMap { $0.tags }
-        return Array(Set(allTags)).sorted()
-    }
-
-    // Get top 8 most-used tags
-    private var topUsedTags: [String] {
-        let allTags = appState.entries.flatMap { $0.tags }
-
-        // Count tag occurrences
-        var tagCounts: [String: Int] = [:]
-        for tag in allTags {
-            tagCounts[tag, default: 0] += 1
-        }
-
-        // Sort by count and return top 8
-        return tagCounts
-            .sorted { $0.value > $1.value }
-            .prefix(8)
-            .map { $0.key }
-            .filter { !eventTags.contains($0) } // Exclude tags already on this event
-    }
-
-    // Filter suggestions based on current input
+    // Get tag suggestions from unified TagStore (universal, not date-dependent)
     private var tagSuggestions: [String] {
-        guard !tagInput.isEmpty else { return topUsedTags }
-        let searchText = tagInput.hasPrefix("#") ? String(tagInput.dropFirst()) : tagInput
-        return allExistingTags.filter { tag in
-            tag.lowercased().contains(searchText.lowercased()) && !eventTags.contains(tag)
-        }
+        TagStore.shared.searchTags(tagInput, excluding: eventTags)
     }
 
     var body: some View {

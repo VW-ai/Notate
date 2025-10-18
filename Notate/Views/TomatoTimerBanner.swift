@@ -10,25 +10,9 @@ struct TomatoTimerBanner: View {
 
     @State private var animationOffset: CGFloat = 0
 
-    // Tag suggestions (from all entries)
-    private var allExistingTags: [String] {
-        let allTags = appState.entries.flatMap { $0.tags }
-        return Array(Set(allTags)).sorted()
-    }
-
+    // Get top 8 tag suggestions from TagStore (universal, not date-dependent)
     private var topUsedTags: [String] {
-        let allTags = appState.entries.flatMap { $0.tags }
-
-        var tagCounts: [String: Int] = [:]
-        for tag in allTags {
-            tagCounts[tag, default: 0] += 1
-        }
-
-        return tagCounts
-            .sorted { $0.value > $1.value }
-            .prefix(8)
-            .map { $0.key }
-            .filter { !operatorState.timerTags.contains($0) }
+        TagStore.shared.getTopTags(limit: 8, excluding: operatorState.timerTags)
     }
 
     var body: some View {

@@ -86,6 +86,43 @@ class CalendarService: ObservableObject {
         .sorted { $0.startTime < $1.startTime }
     }
 
+    /// Fetch ALL events in a date range (for TagStore to get all tags)
+    func fetchAllEvents(from startDate: Date, to endDate: Date) async -> [CalendarEvent] {
+        guard hasCalendarAccess else {
+            print("⚠️ No calendar access for fetchAllEvents")
+            return []
+        }
+
+        let predicate = eventStore.predicateForEvents(
+            withStart: startDate,
+            end: endDate,
+            calendars: nil
+        )
+
+        let ekEvents = eventStore.events(matching: predicate)
+
+        let calendarEvents = ekEvents.map { ekEvent in
+            CalendarEvent(
+                id: ekEvent.eventIdentifier ?? UUID().uuidString,
+                title: ekEvent.title ?? "Untitled Event",
+                startTime: ekEvent.startDate,
+                endTime: ekEvent.endDate,
+                location: ekEvent.location,
+                attendees: ekEvent.attendees?.compactMap { $0.name } ?? [],
+                calendarName: ekEvent.calendar?.title ?? "Calendar",
+                calendarColor: ekEvent.calendar?.cgColor,
+                isAllDay: ekEvent.isAllDay,
+                notes: ekEvent.notes,
+                url: ekEvent.url,
+                isAIGenerated: false,
+                linkedPieceId: nil
+            )
+        }
+
+        print("📅 Fetched \(calendarEvents.count) events from \(startDate) to \(endDate)")
+        return calendarEvents
+    }
+
     // MARK: - Filter Events by Time Period
 
     func eventsForTimePeriod(startHour: Int, endHour: Int, on date: Date) -> [CalendarEvent] {

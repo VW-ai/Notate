@@ -29,33 +29,9 @@ struct CreationDetailView: View {
         creationMode == .event || creationMode == .timer
     }
 
-    // Tag suggestions
-    private var allExistingTags: [String] {
-        let allTags = appState.entries.flatMap { $0.tags }
-        return Array(Set(allTags)).sorted()
-    }
-
-    private var topUsedTags: [String] {
-        let allTags = appState.entries.flatMap { $0.tags }
-
-        var tagCounts: [String: Int] = [:]
-        for tag in allTags {
-            tagCounts[tag, default: 0] += 1
-        }
-
-        return tagCounts
-            .sorted { $0.value > $1.value }
-            .prefix(8)
-            .map { $0.key }
-            .filter { !tags.contains($0) }
-    }
-
+    // Get tag suggestions from unified TagStore (universal, not date-dependent)
     private var tagSuggestions: [String] {
-        guard !tagInput.isEmpty else { return topUsedTags }
-        let searchText = tagInput.hasPrefix("#") ? String(tagInput.dropFirst()) : tagInput
-        return allExistingTags.filter { tag in
-            tag.lowercased().contains(searchText.lowercased()) && !tags.contains(tag)
-        }
+        TagStore.shared.searchTags(tagInput, excluding: tags)
     }
 
     var body: some View {
