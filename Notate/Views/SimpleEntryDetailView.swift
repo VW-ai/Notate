@@ -10,6 +10,7 @@ struct SimpleEntryDetailView: View {
     @State private var editedContent: String
     @State private var tagInput: String = ""
     @State private var showTagSuggestions: Bool = false
+    @State private var entryTags: [String] = []
 
     // Get all existing tags from all entries for suggestions
     private var allExistingTags: [String] {
@@ -32,7 +33,7 @@ struct SimpleEntryDetailView: View {
             .sorted { $0.value > $1.value }
             .prefix(8)
             .map { $0.key }
-            .filter { !entry.tags.contains($0) } // Exclude tags already on this entry
+            .filter { !entryTags.contains($0) } // Exclude tags already on this entry
     }
 
     // Filter suggestions based on current input
@@ -40,13 +41,14 @@ struct SimpleEntryDetailView: View {
         guard !tagInput.isEmpty else { return topUsedTags }
         let searchText = tagInput.hasPrefix("#") ? String(tagInput.dropFirst()) : tagInput
         return allExistingTags.filter { tag in
-            tag.lowercased().contains(searchText.lowercased()) && !entry.tags.contains(tag)
+            tag.lowercased().contains(searchText.lowercased()) && !entryTags.contains(tag)
         }
     }
 
     init(entry: Entry) {
         self.entry = entry
         _editedContent = State(initialValue: entry.content)
+        _entryTags = State(initialValue: entry.tags)
     }
 
     var body: some View {
@@ -137,9 +139,9 @@ struct SimpleEntryDetailView: View {
                             // Tags section
                             VStack(alignment: .leading, spacing: 12) {
                                 // Existing tags in flowing layout
-                                if !entry.tags.isEmpty {
+                                if !entryTags.isEmpty {
                                     FlowLayout(spacing: 8) {
-                                        ForEach(entry.tags, id: \.self) { tag in
+                                        ForEach(entryTags, id: \.self) { tag in
                                             let tagColor = tagColorManager.getColorForTag(tag) ?? .gray
                                             HStack(spacing: 4) {
                                                 Text("#\(tag)")
@@ -565,20 +567,23 @@ struct SimpleEntryDetailView: View {
         cleanedTag = cleanedTag.trimmingCharacters(in: CharacterSet(charactersIn: " ,"))
 
         // Only add if not empty and not already in tags
-        guard !cleanedTag.isEmpty, !entry.tags.contains(cleanedTag) else {
+        guard !cleanedTag.isEmpty, !entryTags.contains(cleanedTag) else {
             tagInput = ""
             return
         }
 
-        // Update entry with new tag
+        // Update local state immediately for instant UI feedback
+        entryTags.append(cleanedTag)
+
+        // Update entry in database
         var updatedEntry = entry
-        updatedEntry.tags.append(cleanedTag)
+        updatedEntry.tags = entryTags
         appState.updateEntry(updatedEntry)
 
         // Register tag and ensure color is assigned AFTER successful update
         tagColorManager.registerTag(cleanedTag)
 
-        // Update the selected entry to trigger UI refresh
+        // Update the selected entry to trigger UI refresh in timeline
         if let refreshedEntry = appState.databaseManager.entries.first(where: { $0.id == entry.id }) {
             appState.selectedEntry = refreshedEntry
         }
@@ -590,11 +595,15 @@ struct SimpleEntryDetailView: View {
     }
 
     private func removeTag(_ tag: String) {
+        // Update local state immediately for instant UI feedback
+        entryTags.removeAll { $0 == tag }
+
+        // Update entry in database
         var updatedEntry = entry
-        updatedEntry.tags.removeAll { $0 == tag }
+        updatedEntry.tags = entryTags
         appState.updateEntry(updatedEntry)
 
-        // Update the selected entry to trigger UI refresh
+        // Update the selected entry to trigger UI refresh in timeline
         if let refreshedEntry = appState.databaseManager.entries.first(where: { $0.id == entry.id }) {
             appState.selectedEntry = refreshedEntry
         }

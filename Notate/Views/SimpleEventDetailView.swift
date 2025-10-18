@@ -14,6 +14,7 @@ struct SimpleEventDetailView: View {
     @State private var editedEndTime: Date
     @State private var tagInput: String = ""
     @State private var eventTags: [String] = []
+    @State private var isUpdatingTags: Bool = false
 
     init(event: CalendarEvent) {
         self.event = event
@@ -76,6 +77,9 @@ struct SimpleEventDetailView: View {
         .transition(.opacity)
         .onReceive(CalendarService.shared.objectWillChange) { _ in
             // Update eventTags when calendar events are refreshed
+            // BUT skip if we're currently updating to avoid race conditions
+            guard !isUpdatingTags else { return }
+
             DispatchQueue.main.async {
                 if let updatedEvent = CalendarService.shared.events.first(where: { $0.id == event.id }) {
                     eventTags = Self.extractTags(from: updatedEvent.notes)
@@ -518,6 +522,11 @@ struct SimpleEventDetailView: View {
 
     private func updateEventTags() {
         Task {
+            // Set flag to prevent race conditions with onReceive
+            await MainActor.run {
+                isUpdatingTags = true
+            }
+
             let toolService = ToolService()
 
             // Format tags into notes
@@ -550,9 +559,20 @@ struct SimpleEventDetailView: View {
 
                     // Force objectWillChange to notify observers
                     CalendarService.shared.objectWillChange.send()
+
+                    // Small delay to ensure calendar update completes, then clear flag
+                    Task {
+                        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                        await MainActor.run {
+                            isUpdatingTags = false
+                        }
+                    }
                 }
             } catch {
                 print("❌ Failed to update event tags: \(error)")
+                await MainActor.run {
+                    isUpdatingTags = false
+                }
             }
         }
     }
