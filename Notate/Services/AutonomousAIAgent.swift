@@ -364,6 +364,13 @@ class AutonomousAIAgent: ObservableObject {
 
         // Execute actions with ToolService
         await executeActionsWithToolService(actions, for: entry.id, using: toolService)
+
+        // Send notification about AI processing completion if there are actions
+        if !actions.isEmpty {
+            await MainActor.run {
+                SystemNotificationManager.shared.notifyAIProcessingComplete(entry, actions: actions)
+            }
+        }
     }
 
     private func executeActionsWithToolService(_ actions: [AIAction], for entryId: String, using toolService: ToolService) async {

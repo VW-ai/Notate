@@ -13,6 +13,9 @@ final class AppState: ObservableObject {
     lazy var contentExtractor = AIContentExtractor(aiService: aiService)
     lazy var autonomousAIAgent = AutonomousAIAgent(aiService: aiService, databaseManager: databaseManager)
     lazy var permissionManager = PermissionManager()
+
+    // Notification Services
+    let systemNotificationManager = SystemNotificationManager.shared
     
     @Published var lastCapturedPreview: String = ""
     @Published var lastCaptureResult: CaptureResult?
@@ -65,7 +68,7 @@ final class AppState: ObservableObject {
                 self.entries = newEntries
             }
             .store(in: &cancellables)
-        
+
         // Listen for capture results
         NotificationCenter.default.publisher(for: .notateDidFinishCapture)
             .compactMap { $0.object as? CaptureResult }
@@ -84,6 +87,23 @@ final class AppState: ObservableObject {
                 self?.handleNewEntry(entry)
             }
             .store(in: &cancellables)
+
+        // Listen for notification taps to show specific entry
+        NotificationCenter.default.publisher(for: NSNotification.Name("ShowEntryFromNotification"))
+            .compactMap { $0.userInfo?["entryId"] as? String }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] entryId in
+                self?.showEntryFromNotification(entryId: entryId)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func showEntryFromNotification(entryId: String) {
+        // Find the entry and select it
+        if let entry = entries.first(where: { $0.id == entryId }) {
+            selectedEntry = entry
+            print("📍 Showing entry from notification: \(entry.content.prefix(50))")
+        }
     }
     
     func loadEntries() {
@@ -97,6 +117,9 @@ final class AppState: ObservableObject {
     // MARK: - AI Processing Integration
 
     private func handleNewEntry(_ entry: Entry) {
+        // Send notification that entry was captured
+        systemNotificationManager.notifyEntryCapture(entry)
+
         // Trigger AI processing if enabled
         if aiService.isConfigured && UserDefaults.standard.bool(forKey: "aiProcessingEnabled") {
             print("🤖 Starting AI processing for: \(entry.content.prefix(50))...")

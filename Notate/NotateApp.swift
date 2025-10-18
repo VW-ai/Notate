@@ -17,6 +17,7 @@ struct NotateApp: App {
                     .onAppear {
                         appState.engine.start()
                         startPermissionMonitoring()
+                        requestNotificationPermissions()
                     }
                     .onDisappear {
                         stopPermissionMonitoring()
@@ -132,6 +133,17 @@ struct NotateApp: App {
     private func stopPermissionMonitoring() {
         permissionCheckTimer?.invalidate()
         permissionCheckTimer = nil
+    }
+
+    private func requestNotificationPermissions() {
+        Task {
+            let granted = await appState.systemNotificationManager.requestPermission()
+            if granted {
+                print("✅ System notification permissions granted")
+            } else {
+                print("⚠️ System notification permissions denied")
+            }
+        }
     }
 }
 
