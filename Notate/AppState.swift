@@ -1,6 +1,7 @@
 // AppState.swift
 import Foundation
 import Combine
+import AppKit
 
 @MainActor
 final class AppState: ObservableObject {
@@ -117,6 +118,9 @@ final class AppState: ObservableObject {
     // MARK: - AI Processing Integration
 
     private func handleNewEntry(_ entry: Entry) {
+        // Prevent app from coming to foreground during background capture
+        preventWindowActivation()
+
         // Send notification that entry was captured
         systemNotificationManager.notifyEntryCapture(entry)
 
@@ -126,6 +130,14 @@ final class AppState: ObservableObject {
             processEntryWithAI(entry)
         } else {
             print("⚠️ AI processing disabled or not configured")
+        }
+    }
+
+    private func preventWindowActivation() {
+        // Deactivate app to prevent it from stealing focus
+        // This ensures capture happens in background
+        DispatchQueue.main.async {
+            NSApp.hide(nil)
         }
     }
 
