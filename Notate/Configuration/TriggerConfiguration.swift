@@ -7,12 +7,14 @@ struct TriggerConfig: Codable, Identifiable {
     var trigger: String
     var defaultType: EntryType
     var isEnabled: Bool
-    
-    init(id: String = UUID().uuidString, trigger: String, defaultType: EntryType, isEnabled: Bool = true) {
+    var isTimerTrigger: Bool // Special flag for timer triggers (creates calendar event via timer, not entry)
+
+    init(id: String = UUID().uuidString, trigger: String, defaultType: EntryType, isEnabled: Bool = true, isTimerTrigger: Bool = false) {
         self.id = id
         self.trigger = trigger
         self.defaultType = defaultType
         self.isEnabled = isEnabled
+        self.isTimerTrigger = isTimerTrigger
     }
 }
 
@@ -29,7 +31,8 @@ struct AppConfiguration: Codable {
             TriggerConfig(trigger: "///", defaultType: .todo),
             TriggerConfig(trigger: ",,,", defaultType: .piece),
             TriggerConfig(trigger: "，，，", defaultType: .piece),
-            TriggerConfig(trigger: ";;", defaultType: .todo)
+            TriggerConfig(trigger: ";;", defaultType: .todo),
+            TriggerConfig(trigger: ";;;", defaultType: .todo, isTimerTrigger: true) // Timer triggers create calendar events, not entries
         ],
         autoClearInput: true,
         captureTimeout: 3.0,

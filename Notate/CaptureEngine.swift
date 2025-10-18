@@ -6,12 +6,18 @@ extension Notification.Name {
     static let notateDidDetectTrigger = Notification.Name("Notate.didDetectTrigger")
     static let notateDidFinishCapture  = Notification.Name("Notate.didFinishCapture")
     static let todoArchivedNotification = Notification.Name("Notate.todoArchived")
+    static let notateDidDetectTimerTrigger = Notification.Name("Notate.didDetectTimerTrigger")
 }
 
 struct CaptureResult {
     let content: String
     let triggerUsed: String
     let type: EntryType
+}
+
+struct TimerCaptureResult {
+    let eventName: String
+    let triggerUsed: String
 }
 
 final class CaptureEngine: ObservableObject {
@@ -217,15 +223,22 @@ final class CaptureEngine: ObservableObject {
             resetCapture()
             return
         }
-        
+
         print("🎯 完成捕获:")
         print("  - 原始文本: '\(rawText)'")
         print("  - 触发器: '\(currentTrigger)'")
-        
+
+        // Check if this is a timer trigger
+        if let triggerConfig = currentTriggerConfig, triggerConfig.isTimerTrigger {
+            print("🍅 Timer trigger detected!")
+            handleTimerCapture(eventName: rawText)
+            return
+        }
+
         // Clean content and detect type
         let cleanedContent = configManager.cleanContent(rawText)
         let entryType = configManager.detectEntryType(from: rawText, triggerUsed: currentTrigger)
-        
+
         print("  - 清理后文本: '\(cleanedContent)'")
         print("  - 检测类型: \(entryType.displayName)")
         
@@ -275,6 +288,25 @@ final class CaptureEngine: ObservableObject {
         print("🤖 Triggered AI processing for entry: \(entry.content.prefix(50))...")
     }
     
+    private func handleTimerCapture(eventName: String) {
+        // Clear input if auto-clear is enabled
+        if configManager.configuration.autoClearInput {
+            clearCurrentInput()
+        }
+
+        // Create timer capture result
+        let result = TimerCaptureResult(
+            eventName: eventName,
+            triggerUsed: currentTrigger
+        )
+
+        // Post notification for timer tag selection popup
+        NotificationCenter.default.post(name: .notateDidDetectTimerTrigger, object: result)
+
+        print("🍅 Timer capture complete: '\(eventName)'")
+        resetCapture()
+    }
+
     private func clearCurrentInput() {
         // Clear the input field by sending backspace events
         // Capture the count before async dispatch to avoid race condition
