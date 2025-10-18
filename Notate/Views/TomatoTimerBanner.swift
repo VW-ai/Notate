@@ -33,11 +33,14 @@ struct TomatoTimerBanner: View {
 
     var body: some View {
         ZStack {
-            // Animated flowing background
-            flowingBackground
+            // Subtle red background
+            Color(hex: "#8B3A3A").opacity(0.4) // Muted dark red
+
+            // Thin sliding red bar
+            slidingBar
 
             // Content
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 // Timer display
                 timerDisplay
 
@@ -47,42 +50,38 @@ struct TomatoTimerBanner: View {
                 // Tags row
                 tagsRow
             }
-            .padding(.horizontal, 32)
-            .padding(.vertical, 20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
+        .clipped() // Prevent bar from overflowing horizontally
     }
 
-    // MARK: - Flowing Background
+    // MARK: - Sliding Bar
 
-    private var flowingBackground: some View {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                Color(hex: "#E74C3C"),
-                Color(hex: "#C0392B"),
-                Color(hex: "#E74C3C"),
-                Color(hex: "#C0392B")
-            ]),
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-        .offset(x: animationOffset)
-        .onAppear {
-            withAnimation(.linear(duration: 3.0).repeatForever(autoreverses: false)) {
-                animationOffset = 400
-            }
+    private var slidingBar: some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(Color(hex: "#C0392B")) // Darker red for the sliding bar
+                .frame(width: 8) // Thin vertical bar
+                .offset(x: animationOffset)
+                .onAppear {
+                    withAnimation(.linear(duration: 2.5).repeatForever(autoreverses: false)) {
+                        animationOffset = geometry.size.width
+                    }
+                }
         }
     }
 
     // MARK: - Timer Display
 
     private var timerDisplay: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Image(systemName: "timer")
-                .font(.system(size: 24, weight: .bold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.white)
 
             Text(operatorState.formattedDuration(seconds: operatorState.timerElapsedSeconds))
-                .font(.system(size: 32, weight: .bold, design: .monospaced))
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
         }
     }
@@ -90,22 +89,25 @@ struct TomatoTimerBanner: View {
     // MARK: - Event Name Field
 
     private var eventNameField: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: "pencil")
-                .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.8))
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.9))
 
             TextField("Event name...", text: $operatorState.timerEventName)
                 .textFieldStyle(PlainTextFieldStyle())
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 15, weight: .medium))
                 .foregroundColor(.white)
-                .frame(maxWidth: 400)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.2))
+                .fill(Color.white.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
+                )
         )
     }
 
