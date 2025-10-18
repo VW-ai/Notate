@@ -1,5 +1,194 @@
 # Development Progress
 
+## Session: 2025-10-18 - Timer System Implementation
+
+### Completed Features
+
+#### 1. Comprehensive Timer Workflow System
+- **Location**: `Notate/Views/TimerPopupWindow.swift`, `Notate/Managers/TimerPopupManager.swift`
+- **Features**:
+  - Unified popup window with 5 distinct modes:
+    - Event name input (when `;;;` typed alone)
+    - Tag selection (after timer stopped)
+    - Running timer status (during active tracking)
+    - Conflict resolution (starting while timer running)
+    - Event completion/editing (review before save)
+
+- **Timer Start Workflow**:
+  - Type `;;;` (empty) → Popup + notification for event name input
+  - Type `;;;event name` → Start timer immediately with notification
+  - NO tags required at start - tags selected after stopping
+
+- **Timer Running**:
+  - Type `;;;` while running → Show running timer popup with live duration
+  - Press Enter or click "Stop Timer" → Show tag selection popup
+  - Escape closes popup without stopping timer
+
+- **Conflict Handling**:
+  - Type `;;;` or `;;;event name` while timer running → Conflict popup
+  - Must stop current timer before starting new one
+  - After stopping, proceeds to tag selection, then starts new timer if applicable
+
+#### 2. Tag Selection Improvements
+- **Removed Keyboard Number Selection**:
+  - Eliminated number keys (1-9) for tag selection
+  - Changed to click-only interaction for better UX
+  - Updated UI labels: "Quick tags (click to select)"
+
+- **Live Tag Filtering**:
+  - Implemented real-time tag search as user types
+  - Uses `TagStore.searchTags()` for efficient filtering
+  - Shows matching tags in scrollable list (max height: 120px)
+  - Filters exclude already-selected tags
+  - Quick tags hidden when search active
+
+- **Visual Design**:
+  - Tag colors from TagColorManager displayed consistently
+  - Selected tags show checkmark icon in filtered list
+  - Tag pills with colored backgrounds and remove buttons
+
+#### 3. Notification Integration
+- **System Notifications** (`SystemNotificationManager.swift`):
+  - Timer name input notification with text field action
+  - Unique notification IDs (timestamp-based) ensure always visible
+  - Click notification → Opens appropriate popup
+  - Text input in notification → Starts timer directly
+  - Notification categories with `UNTextInputNotificationAction`
+
+- **Popup-Notification Coordination**:
+  - Using popup dismisses corresponding notification
+  - Using notification dismisses popup if open
+  - Singleton `TimerPopupManager` prevents duplicate popups
+  - Only ONE popup visible at a time
+
+#### 4. Window Management & Fullscreen Support
+- **NSPanel-Based Architecture**:
+  - Uses NSPanel for better fullscreen app compatibility
+  - Window level: `CGWindowLevelForKey(.mainMenuWindow) + 2`
+  - Appears over fullscreen applications reliably
+  - Collection behavior: `canJoinAllSpaces`, `fullScreenAuxiliary`
+
+- **Smart Activation Logic**:
+  - Event name input: No app activation (user stays in current app)
+  - Tag selection/timer views: Full activation with keyboard/mouse
+  - Hides all other Notate windows except popup
+  - `orderFrontRegardless()` ensures popup visibility
+
+- **Interactive Window Properties**:
+  - Override `canBecomeKey` and `canBecomeMain` to accept input
+  - `.focusable()` modifier on SwiftUI views
+  - Clickable buttons alongside keyboard shortcuts
+  - Proper first responder management
+
+#### 5. In-App Consistency
+- **Operator Panel Integration** (`OperatorView.swift`):
+  - Stop timer button → Shows creation detail view (same as keyboard workflow)
+  - No longer directly saves timer - allows tag addition/editing
+  - Consistent workflow between keyboard and in-app actions
+
+- **Timeline Auto-Refresh**:
+  - Added `CalendarService.shared.fetchEvents()` after timer save
+  - Timeline immediately reflects new timer events
+  - No manual refresh needed
+
+#### 6. Visual Design Unification
+- **Uniform Button Design**:
+  - All popups use consistent button styling
+  - Big buttons with keyboard shortcut hints (⏎, ⎋)
+  - Color-coded actions:
+    - Primary action: White on colored background
+    - Secondary: Transparent with border
+    - Danger/conflict: Orange background
+
+- **Running Timer Visual**:
+  - Sliding bar background animation (tomato clock aesthetic)
+  - Live duration counter (HH:MM:SS format)
+  - Tag pills displayed below event name
+  - Red-tinted background (#8B3A3A)
+
+- **Tag Selection Popup**:
+  - 20% taller than other popups (384px vs 320px)
+  - Increased top/bottom padding (24px)
+  - Removed "Selected:" label (unnecessary visual clutter)
+  - Tags show with assigned colors throughout
+
+### Technical Improvements
+
+1. **Trigger System Migration**:
+   - Added `;;;` trigger to TriggerConfiguration
+   - Migration logic ensures trigger exists in all installations
+   - `isTimerTrigger` flag distinguishes timer from regular triggers
+
+2. **State Management**:
+   - Timer state managed by `OperatorState.shared`
+   - Popup state managed by `TimerPopupManager.shared`
+   - Notification state tracked for dismissal coordination
+   - AppState orchestrates entire workflow
+
+3. **Type Safety**:
+   - Enum-based popup modes prevent invalid states
+   - Completion closures with proper type signatures
+   - SwiftUI property wrappers (@State, @FocusState, @StateObject)
+
+4. **Code Organization**:
+   - Separated popup modes into distinct view structs
+   - Computed properties for complex UI elements
+   - MARK comments for clear section boundaries
+   - Extracted helper methods for event name handling
+
+### Commits Made (1 Total)
+
+1. **c56261f** - `feat: implement complete timer workflow with simplified tag selection`
+   - Created TimerPopupManager.swift (singleton coordination)
+   - Created TimerPopupWindow.swift (unified popup with 5 modes)
+   - Modified AppState.swift (complete workflow implementation)
+   - Modified SystemNotificationManager.swift (timer notifications)
+   - Modified TriggerConfiguration.swift (;;; trigger migration)
+   - Modified OperatorView.swift (in-app stop → detail view)
+   - Modified CaptureEngine.swift (timer trigger handling)
+
+### Files Modified/Created
+
+#### Created:
+- `Notate/Managers/TimerPopupManager.swift` - Singleton popup & notification coordination
+- `Notate/Views/TimerPopupWindow.swift` - Unified popup with 5 modes (848 lines)
+
+#### Modified:
+- `Notate/AppState.swift` - Complete timer workflow orchestration
+- `Notate/Services/SystemNotificationManager.swift` - Notification categories & timer methods
+- `Notate/Configuration/TriggerConfiguration.swift` - Migration for ;;; trigger
+- `Notate/Views/OperatorView.swift` - In-app timer stop → creation detail view
+- `Notate/CaptureEngine.swift` - Timer trigger detection & handling
+
+### Testing Checklist
+
+- [x] Type ;;; (empty) shows event name input popup
+- [x] Type ;;;event name starts timer immediately
+- [x] Type ;;; while timer running shows running timer popup
+- [x] Type ;;;event while timer running shows conflict popup
+- [x] Conflict popup stop → tag selection → new timer starts
+- [x] Tag selection popup shows quick tags when search empty
+- [x] Tag search filters tags in real-time
+- [x] Filtered tags show with colors and checkmarks
+- [x] Click tag to toggle selection (no keyboard numbers)
+- [x] Popups appear over fullscreen applications
+- [x] Only one popup visible at a time
+- [x] Notifications coordinate with popups (mutual dismissal)
+- [x] In-app stop shows creation detail view
+- [x] Timeline refreshes after timer saved
+- [x] Button clicks work (not just keyboard)
+- [x] Escape closes popup without affecting timer
+- [x] Enter confirms actions in all popups
+
+### Known Issues / Future Enhancements
+
+1. **Multi-language Input**: Timer name input doesn't yet support IME (Chinese, etc.)
+2. **Timer Persistence**: No persistence across app restarts (timers lost if app quits)
+3. **Timer History**: No view of past timers or timer analytics
+4. **Custom Timer Durations**: No way to set target duration or pomodoro intervals
+
+---
+
 ## Session: 2025-10-17 - Sticky Cursor Tags & UI Refinements
 
 ### Completed Features

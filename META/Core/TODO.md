@@ -2,6 +2,40 @@
 
 ## High Priority
 
+### UI Responsiveness & Layout (2025-10-18)
+- [ ] **Different Proportion Handling**
+  - Implement responsive layout for different screen sizes
+  - Handle ultra-wide and narrow aspect ratios
+  - Adjust panel widths dynamically based on available space
+  - Support minimum/maximum window sizes
+  - Optimize for MacBook vs external monitor layouts
+
+### New Application Pages (2025-10-18)
+- [ ] **Notes Page Development**
+  - Design and implement dedicated notes section
+  - Determine notes vs entries distinction
+  - Notes organization and categorization
+  - Search and filtering for notes
+  - Rich text or markdown support
+
+- [ ] **Settings Page Development**
+  - Centralized settings interface
+  - Trigger configuration UI
+  - Theme and appearance settings
+  - Keyboard shortcuts customization
+  - Data export/import options
+  - Privacy and security settings
+  - Timer preferences (default tags, durations)
+
+### Internationalization (2025-10-18)
+- [ ] **Multi-language Input Handling**
+  - IME (Input Method Editor) support for Chinese, Japanese, Korean
+  - Proper character composition handling
+  - Trigger detection with multi-byte characters
+  - Text field compatibility with IME states
+  - Font rendering optimization for CJK characters
+  - Right-to-left language support consideration
+
 ### New User Input Features (2025-10-17)
 - [ ] **Copy and Paste Support for Entries**
   - Implement clipboard functionality for entry content
@@ -142,6 +176,22 @@
 ---
 
 ## Completed This Session ✅
+
+### 2025-10-18 - Timer System Implementation
+- [x] Implement comprehensive timer workflow with ;;; trigger
+- [x] Create unified popup window with 5 modes (name input, tags, running, conflict, completion)
+- [x] Remove keyboard number selection from tag popup
+- [x] Implement live tag filtering as user types
+- [x] Add notification integration with text input support
+- [x] Create singleton TimerPopupManager for popup coordination
+- [x] Implement popup-notification mutual dismissal
+- [x] Add NSPanel support for fullscreen app compatibility
+- [x] Connect in-app timer stop to creation detail view
+- [x] Add timeline auto-refresh after timer save
+- [x] Unify button design across all popups
+- [x] Add colored tag display to popup views
+- [x] Implement smart window activation (no activation for name input)
+- [x] Add trigger migration for ;;; in TriggerConfiguration
 
 ### 2025-10-17 - Sticky Cursor & UI Polish
 - [x] Implement sticky cursor tag assignment system
