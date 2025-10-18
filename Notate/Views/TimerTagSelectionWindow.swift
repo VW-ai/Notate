@@ -8,7 +8,7 @@ class TimerTagSelectionWindow: NSWindow {
     init(eventName: String) {
         // Create window with appropriate size and style
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 320),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -148,24 +148,29 @@ struct TimerTagSelectionView: View {
     private func quickTagButton(number: Int, tag: String) -> some View {
         let isSelected = selectedTags.contains(tag)
 
-        return HStack(spacing: 4) {
-            Text("\(number)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(isSelected ? .white : .secondary)
-                .frame(width: 16, height: 16)
-                .background(isSelected ? Color.blue : Color.clear)
-                .clipShape(Circle())
+        return Button(action: {
+            toggleTag(tag)
+        }) {
+            HStack(spacing: 4) {
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(isSelected ? .white : .secondary)
+                    .frame(width: 16, height: 16)
+                    .background(isSelected ? Color.blue : Color.clear)
+                    .clipShape(Circle())
 
-            Text("#\(tag)")
-                .font(.system(size: 13))
-                .foregroundColor(isSelected ? .blue : .primary)
+                Text("#\(tag)")
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? .blue : .primary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isSelected ? Color.blue.opacity(0.1) : Color.clear)
+            )
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(isSelected ? Color.blue.opacity(0.1) : Color.clear)
-        )
+        .buttonStyle(.plain)
     }
 
     private var searchSection: some View {
