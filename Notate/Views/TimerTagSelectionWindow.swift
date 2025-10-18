@@ -18,8 +18,9 @@ class TimerTagSelectionWindow: NSWindow {
         self.title = ""
         self.titlebarAppearsTransparent = true
         self.isMovableByWindowBackground = true
-        self.level = .floating
+        self.level = .popUpMenu // Highest level to appear above all apps
         self.isReleasedWhenClosed = false
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         // Center on screen
         self.center()
@@ -28,7 +29,8 @@ class TimerTagSelectionWindow: NSWindow {
         let contentView = TimerTagSelectionView(eventName: eventName, window: self)
         self.contentView = NSHostingView(rootView: contentView)
 
-        // Make key and order front
+        // Activate app and make key window
+        NSApp.activate(ignoringOtherApps: true)
         self.makeKeyAndOrderFront(nil)
     }
 }
@@ -301,14 +303,18 @@ struct TimerTagSelectionView: View {
         operatorState.timerTags = Array(selectedTags)
         operatorState.startTimer()
 
-        // Close window
+        // Close window and hide app
         window.close()
+        NSApp.hide(nil)
 
         print("🍅 Timer started: \(eventName), tags: \(selectedTags)")
     }
 
     private func cancelSelection() {
+        // Close window and hide app
         window.close()
+        NSApp.hide(nil)
+
         print("⎋ Timer tag selection cancelled")
     }
 }
