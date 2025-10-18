@@ -62,9 +62,24 @@ final class ConfigurationManager: ObservableObject {
     private static func loadConfiguration() -> AppConfiguration {
         guard let data = UserDefaults.standard.data(forKey: "NotateConfiguration"),
               !data.isEmpty,
-              let config = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
+              var config = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
             return AppConfiguration.default
         }
+
+        // Migration: Ensure timer trigger exists
+        let hasTimerTrigger = config.triggers.contains { $0.trigger == ";;;" && $0.isTimerTrigger }
+        if !hasTimerTrigger {
+            print("🔄 Adding missing timer trigger ;;; to configuration")
+            config.triggers.append(
+                TriggerConfig(trigger: ";;;", defaultType: .todo, isTimerTrigger: true)
+            )
+            // Save the migrated configuration
+            if let data = try? JSONEncoder().encode(config) {
+                UserDefaults.standard.set(data, forKey: "NotateConfiguration")
+                UserDefaults.standard.synchronize()
+            }
+        }
+
         return config
     }
     

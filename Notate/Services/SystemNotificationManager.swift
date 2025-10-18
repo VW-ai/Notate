@@ -16,7 +16,32 @@ class SystemNotificationManager: NSObject, ObservableObject {
     private override init() {
         super.init()
         notificationCenter.delegate = self
+        setupNotificationCategories()
         checkPermission()
+    }
+
+    // MARK: - Notification Categories Setup
+
+    private func setupNotificationCategories() {
+        // Timer name input category with text input action
+        let timerNameInputAction = UNTextInputNotificationAction(
+            identifier: "TIMER_NAME_INPUT_ACTION",
+            title: "Start Timer",
+            options: [],
+            textInputButtonTitle: "Start",
+            textInputPlaceholder: "Event name"
+        )
+
+        let timerNameInputCategory = UNNotificationCategory(
+            identifier: "TIMER_NAME_INPUT",
+            actions: [timerNameInputAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        // Register categories
+        notificationCenter.setNotificationCategories([timerNameInputCategory])
+        print("✅ Notification categories registered")
     }
 
     // MARK: - Permission Management
@@ -56,7 +81,7 @@ class SystemNotificationManager: NSObject, ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "✓ Entry Captured"
         content.body = formatEntryPreview(entry)
-        content.sound = .default
+        content.sound = nil // Silent - don't interrupt user's workflow
         content.categoryIdentifier = "ENTRY_CAPTURE"
 
         // Add entry ID to userInfo for interaction handling
@@ -76,7 +101,7 @@ class SystemNotificationManager: NSObject, ObservableObject {
         content.title = "🤖 AI Processing Complete"
         content.body = formatEntryPreview(entry)
         content.subtitle = formatActionsSummary(actions)
-        content.sound = .default
+        content.sound = nil // Silent - don't interrupt user's workflow
         content.categoryIdentifier = "AI_COMPLETE"
 
         content.userInfo = [
@@ -131,36 +156,75 @@ class SystemNotificationManager: NSObject, ObservableObject {
 
     // MARK: - Timer Notifications
 
-    /// Show notification when timer starts
-    func notifyTimerStarted(eventName: String?, tags: [String]) {
-        guard permissionGranted else { return }
+    /// Show notification prompting for event name (when ;;; typed)
+    func notifyTimerNameInput() -> String {
+        guard permissionGranted else { return "" }
+
+        // Use unique ID each time to ensure notification always appears
+        let notificationId = "timer-name-input-\(Date().timeIntervalSince1970)"
 
         let content = UNMutableNotificationContent()
-        content.title = "🍅 Timer Started"
-        content.body = eventName ?? "Tracking time..."
+        content.title = "🍅 Name Your Timer Event"
+        content.body = "Click to enter event name"
+        content.sound = nil // Silent - user already at keyboard
+        content.categoryIdentifier = "TIMER_NAME_INPUT"
+        content.userInfo = ["type": "timer_name_input"]
 
-        if !tags.isEmpty {
-            content.subtitle = tags.map { "#\($0)" }.joined(separator: " ")
-        }
-
-        content.sound = .default
-        content.categoryIdentifier = "TIMER_START"
-
-        sendNotification(identifier: "timer-start-\(Date().timeIntervalSince1970)", content: content)
+        sendNotification(identifier: notificationId, content: content)
+        return notificationId
     }
 
-    /// Show notification when timer is stopped
-    func notifyTimerStopped(duration: TimeInterval, eventName: String?) {
-        guard permissionGranted else { return }
+    /// Show notification when timer starts with name
+    func notifyTimerStarted(eventName: String) -> String {
+        guard permissionGranted else { return "" }
+
+        let notificationId = "timer-running-\(Date().timeIntervalSince1970)"
+        let content = UNMutableNotificationContent()
+        content.title = "🍅 Timer Started"
+        content.body = eventName.isEmpty ? "Tracking time..." : eventName
+        content.sound = nil
+        content.categoryIdentifier = "TIMER_RUNNING"
+        content.userInfo = ["type": "timer_running", "eventName": eventName]
+
+        sendNotification(identifier: notificationId, content: content)
+        return notificationId
+    }
+
+    /// Show notification for running timer status
+    func notifyTimerRunning(eventName: String, duration: TimeInterval) -> String {
+        guard permissionGranted else { return "" }
+
+        // Use unique ID to ensure notification always appears
+        let notificationId = "timer-status-\(Date().timeIntervalSince1970)"
 
         let content = UNMutableNotificationContent()
-        content.title = "⏱️ Timer Stopped"
-        content.body = eventName ?? "Time tracking completed"
-        content.subtitle = formatDuration(duration)
-        content.sound = .default
-        content.categoryIdentifier = "TIMER_STOP"
+        content.title = "🍅 Timer Running - \(formatDuration(duration))"
+        content.body = eventName.isEmpty ? "(no name)" : eventName
+        content.sound = nil
+        content.categoryIdentifier = "TIMER_STATUS"
+        content.userInfo = ["type": "timer_status"]
 
-        sendNotification(identifier: "timer-stop-\(Date().timeIntervalSince1970)", content: content)
+        sendNotification(identifier: notificationId, content: content)
+        return notificationId
+    }
+
+    /// Show notification when stopping existing timer (conflict)
+    func notifyTimerConflict(eventName: String, duration: TimeInterval) -> String {
+        guard permissionGranted else { return "" }
+
+        // Use unique ID to ensure notification always appears
+        let notificationId = "timer-conflict-\(Date().timeIntervalSince1970)"
+
+        let content = UNMutableNotificationContent()
+        content.title = "⚠️ Timer Already Running"
+        content.body = "Currently tracking: \(eventName.isEmpty ? "(no name)" : eventName)"
+        content.subtitle = "Running for \(formatDuration(duration)) - Stop first to start new timer"
+        content.sound = nil
+        content.categoryIdentifier = "TIMER_CONFLICT"
+        content.userInfo = ["type": "timer_conflict"]
+
+        sendNotification(identifier: notificationId, content: content)
+        return notificationId
     }
 
     // MARK: - Utility Methods
@@ -272,7 +336,8 @@ extension SystemNotificationManager: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         // Show notifications even when app is in foreground
-        completionHandler([.banner, .sound])
+        // Note: Don't use .sound here to avoid interrupting user's workflow
+        completionHandler([.banner])
     }
 
     /// Handle user interaction with notification
@@ -282,6 +347,14 @@ extension SystemNotificationManager: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
+        let notificationId = response.notification.request.identifier
+
+        // Check if this is a text input response
+        if let textResponse = response as? UNTextInputNotificationResponse {
+            handleTextInputResponse(textResponse)
+            completionHandler()
+            return
+        }
 
         // Handle different notification categories
         switch response.notification.request.content.categoryIdentifier {
@@ -289,6 +362,20 @@ extension SystemNotificationManager: UNUserNotificationCenterDelegate {
             if let entryId = userInfo["entryId"] as? String {
                 handleEntryNotificationTap(entryId: entryId)
             }
+
+        case "TIMER_NAME_INPUT":
+            handleTimerNameInputTap(notificationId: notificationId)
+
+        case "TIMER_RUNNING":
+            if let eventName = userInfo["eventName"] as? String {
+                handleTimerRunningTap(eventName: eventName)
+            }
+
+        case "TIMER_STATUS":
+            handleTimerStatusTap()
+
+        case "TIMER_CONFLICT":
+            handleTimerConflictTap()
 
         case "TIMER_START", "TIMER_STOP":
             handleTimerNotificationTap()
@@ -298,6 +385,18 @@ extension SystemNotificationManager: UNUserNotificationCenterDelegate {
         }
 
         completionHandler()
+    }
+
+    private func handleTextInputResponse(_ response: UNTextInputNotificationResponse) {
+        let eventName = response.userText
+        print("📝 User entered event name via notification: '\(eventName)'")
+
+        // Post notification to start timer with this event name
+        NotificationCenter.default.post(
+            name: NSNotification.Name("StartTimerFromNotification"),
+            object: nil,
+            userInfo: ["eventName": eventName]
+        )
     }
 
     private func handleEntryNotificationTap(entryId: String) {
@@ -310,6 +409,39 @@ extension SystemNotificationManager: UNUserNotificationCenterDelegate {
 
         // Activate app
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func handleTimerNameInputTap(notificationId: String) {
+        // Post notification to show event name input popup
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowTimerNameInput"),
+            object: nil,
+            userInfo: ["notificationId": notificationId]
+        )
+    }
+
+    private func handleTimerRunningTap(eventName: String) {
+        // Notification when timer just started - clicking it shows the running timer popup
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowRunningTimerPopup"),
+            object: nil
+        )
+    }
+
+    private func handleTimerStatusTap() {
+        // Post notification to show running timer popup
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowRunningTimerPopup"),
+            object: nil
+        )
+    }
+
+    private func handleTimerConflictTap() {
+        // Post notification to show conflict popup
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowTimerConflictPopup"),
+            object: nil
+        )
     }
 
     private func handleTimerNotificationTap() {

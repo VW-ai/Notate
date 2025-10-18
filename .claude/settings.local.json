@@ -5,7 +5,8 @@
       "Bash(while read f)",
       "Bash(do git ls-files --error-unmatch \"$f\")",
       "Bash(echo \"$f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Read(//dev/**)"
     ],
     "deny": [],
     "ask": []

@@ -131,49 +131,7 @@ struct OperatorView: View {
     // MARK: - Timer Stop Logic
 
     private func handleStopTimer() {
-        let result = operatorState.stopTimer()
-
-        if result.hasData {
-            // Auto-convert to event with flash animation
-            createEventFromTimer(duration: result.duration)
-        } else {
-            // Show detail view for manual input
-            operatorState.enterCreationMode(.timer)
-        }
-    }
-
-    private func createEventFromTimer(duration: TimeInterval) {
-        guard let startTime = operatorState.timerStartTime else { return }
-
-        let endTime = startTime.addingTimeInterval(duration)
-
-        // Create calendar event
-        Task {
-            do {
-                let toolService = ToolService()
-                let tagsString = operatorState.timerTags.isEmpty ? "" : "[tags: \(operatorState.timerTags.joined(separator: ", "))]"
-
-                _ = try await toolService.createCalendarEvent(
-                    title: operatorState.timerEventName,
-                    notes: tagsString,
-                    startDate: startTime,
-                    endDate: endTime
-                )
-
-                await MainActor.run {
-                    // Refresh calendar events
-                    calendarService.fetchEvents(for: startTime)
-
-                    // Reset timer
-                    operatorState.resetTimer()
-
-                    // TODO: Play flash animation from banner to timeline
-
-                    print("✅ Created event from timer: \(operatorState.timerEventName)")
-                }
-            } catch {
-                print("❌ Failed to create event from timer: \(error)")
-            }
-        }
+        // Show tag selection popup (same as keyboard workflow)
+        appState.stopTimerFromApp()
     }
 }

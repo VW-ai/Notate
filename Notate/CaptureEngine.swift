@@ -218,6 +218,16 @@ final class CaptureEngine: ObservableObject {
         idleTimer = nil
 
         let rawText = captureText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Check if this is a timer trigger (allow empty for timer triggers)
+        if let triggerConfig = currentTriggerConfig, triggerConfig.isTimerTrigger {
+            print("🍅 Timer trigger detected!")
+            print("  - Event name: '\(rawText.isEmpty ? "(empty)" : rawText)'")
+            handleTimerCapture(eventName: rawText)
+            return
+        }
+
+        // For regular entries, require non-empty content
         guard !rawText.isEmpty else {
             print("⚠️ 捕获文本为空，重置状态")
             resetCapture()
@@ -227,13 +237,6 @@ final class CaptureEngine: ObservableObject {
         print("🎯 完成捕获:")
         print("  - 原始文本: '\(rawText)'")
         print("  - 触发器: '\(currentTrigger)'")
-
-        // Check if this is a timer trigger
-        if let triggerConfig = currentTriggerConfig, triggerConfig.isTimerTrigger {
-            print("🍅 Timer trigger detected!")
-            handleTimerCapture(eventName: rawText)
-            return
-        }
 
         // Clean content and detect type
         let cleanedContent = configManager.cleanContent(rawText)

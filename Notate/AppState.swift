@@ -106,6 +106,41 @@ final class AppState: ObservableObject {
                 self?.showTimerTagSelection(eventName: result.eventName)
             }
             .store(in: &cancellables)
+
+        // Listen for notification clicks to show timer popups
+        NotificationCenter.default.publisher(for: NSNotification.Name("ShowTimerNameInput"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showEventNameInputPopup()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSNotification.Name("ShowRunningTimerPopup"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showRunningTimerPopup()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSNotification.Name("ShowTimerConflictPopup"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                // Re-trigger the conflict check
+                if let self = self, OperatorState.shared.isTimerRunning {
+                    self.showTimerConflictPopup(newEventName: nil)
+                }
+            }
+            .store(in: &cancellables)
+
+        // Listen for timer start from notification text input
+        NotificationCenter.default.publisher(for: NSNotification.Name("StartTimerFromNotification"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                if let eventName = notification.userInfo?["eventName"] as? String {
+                    self?.startTimerImmediately(eventName: eventName)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func showEntryFromNotification(entryId: String) {
@@ -116,11 +151,221 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Simplified Timer Workflow
+
     private func showTimerTagSelection(eventName: String) {
-        // Show timer tag selection popup window
-        let window = TimerTagSelectionWindow(eventName: eventName)
-        window.makeKeyAndOrderFront(nil)
-        print("🍅 Showing timer tag selection for: \(eventName)")
+        let operatorState = OperatorState.shared
+        let isEmpty = eventName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        if operatorState.isTimerRunning {
+            // Timer is already running
+            if isEmpty {
+                // User typed ;;; - show running timer status
+                showRunningTimerPopup()
+            } else {
+                // User typed ;;;event name - show conflict
+                showTimerConflictPopup(newEventName: eventName)
+            }
+        } else {
+            // No timer running
+            if isEmpty {
+                // User typed ;;; - show event name input + notification
+                showEventNameInputPopup()
+            } else {
+                // User typed ;;;event name - start timer immediately + notification
+                startTimerImmediately(eventName: eventName)
+            }
+        }
+    }
+
+    private func showEventNameInputPopup() {
+        let popupManager = TimerPopupManager.shared
+
+        // Send notification
+        let notifId = systemNotificationManager.notifyTimerNameInput()
+
+        // Show popup
+        popupManager.showPopup(
+            mode: .eventNameInput(completion: { [weak self] eventName in
+                // Start timer with the entered name
+                self?.startTimerImmediately(eventName: eventName)
+                popupManager.closePopup()
+            }),
+            notificationId: notifId
+        )
+    }
+
+    private func startTimerImmediately(eventName: String) {
+        let operatorState = OperatorState.shared
+        let popupManager = TimerPopupManager.shared
+
+        // Start the timer (no tags yet - will be added when stopped)
+        operatorState.startTimer()
+        operatorState.timerEventName = eventName
+        operatorState.timerTags = [] // Tags selected after stopping
+
+        print("🍅 Timer started: '\(eventName)'")
+
+        // Send notification
+        _ = systemNotificationManager.notifyTimerStarted(eventName: eventName)
+
+        // Close any open popups FIRST
+        popupManager.closePopup()
+
+        // Immediately hide the app to return to original context
+        // Use sync to ensure it happens before popup activation completes
+        NSApp.hide(nil)
+    }
+
+    private func showRunningTimerPopup() {
+        let operatorState = OperatorState.shared
+        let popupManager = TimerPopupManager.shared
+        guard let startTime = operatorState.timerStartTime else { return }
+
+        let duration = Date().timeIntervalSince(startTime)
+
+        // Send notification
+        let notifId = systemNotificationManager.notifyTimerRunning(
+            eventName: operatorState.timerEventName,
+            duration: duration
+        )
+
+        // Show popup
+        popupManager.showPopup(
+            mode: .runningTimer(
+                eventName: operatorState.timerEventName,
+                tags: operatorState.timerTags,
+                startTime: startTime,
+                onStop: { [weak self] in
+                    // Timer stopped - show tag selection
+                    self?.showTagSelectionForStoppedTimer()
+                }
+            ),
+            notificationId: notifId
+        )
+    }
+
+    private func showTimerConflictPopup(newEventName: String?) {
+        let operatorState = OperatorState.shared
+        let popupManager = TimerPopupManager.shared
+        guard let startTime = operatorState.timerStartTime else { return }
+
+        let currentDuration = Date().timeIntervalSince(startTime)
+
+        // Send notification
+        let notifId = systemNotificationManager.notifyTimerConflict(
+            eventName: operatorState.timerEventName,
+            duration: currentDuration
+        )
+
+        // Show popup
+        popupManager.showPopup(
+            mode: .conflict(
+                currentEventName: operatorState.timerEventName,
+                currentTags: operatorState.timerTags,
+                currentDuration: currentDuration,
+                newEventName: newEventName,
+                completion: { [weak self] shouldStop in
+                    if shouldStop {
+                        // Stop current timer - show tag selection first
+                        self?.showTagSelectionForStoppedTimer(newEventAfter: newEventName)
+                    } else {
+                        // Cancel - just close popup
+                        popupManager.closePopup()
+                    }
+                }
+            ),
+            notificationId: notifId
+        )
+    }
+
+    /// Shows tag selection after timer is stopped
+    /// - Parameter newEventAfter: If provided, starts a new timer after saving current one
+    private func showTagSelectionForStoppedTimer(newEventAfter: String? = nil) {
+        let operatorState = OperatorState.shared
+        let popupManager = TimerPopupManager.shared
+
+        // Capture current timer state before stopping
+        let eventName = operatorState.timerEventName
+        let startTime = operatorState.timerStartTime ?? Date()
+        let duration = Date().timeIntervalSince(startTime)
+
+        // Stop the timer
+        _ = operatorState.stopTimer()
+
+        // Show tag selection popup
+        popupManager.showPopup(
+            mode: .tagSelection(
+                eventName: eventName,
+                completion: { [weak self] selectedTags in
+                    // Save to calendar with selected tags
+                    self?.saveTimerToCalendar(
+                        eventName: eventName,
+                        tags: selectedTags,
+                        duration: duration
+                    )
+
+                    // Reset timer state
+                    operatorState.resetTimer()
+
+                    // Close popup
+                    popupManager.closePopup()
+
+                    // If there's a new event to start after this, start it
+                    if let newEvent = newEventAfter {
+                        if newEvent.isEmpty {
+                            self?.showEventNameInputPopup()
+                        } else {
+                            self?.startTimerImmediately(eventName: newEvent)
+                        }
+                    }
+                }
+            )
+        )
+    }
+
+    /// Public method to stop timer (called from in-app UI)
+    /// In-app stops show the creation detail view for confirmation/editing
+    func stopTimerFromApp() {
+        let operatorState = OperatorState.shared
+
+        // Stop the timer (keeps event name and tags in state)
+        _ = operatorState.stopTimer()
+
+        // Enter timer creation mode to show detail view
+        operatorState.enterCreationMode(.timer)
+
+        print("🍅 Timer stopped from app, showing creation detail view")
+    }
+
+    private func saveTimerToCalendar(eventName: String, tags: [String], duration: TimeInterval) {
+        let toolService = ToolService()
+        let startTime = Date().addingTimeInterval(-duration)
+        let endTime = Date()
+
+        Task {
+            do {
+                let eventId = try await toolService.createCalendarEvent(
+                    title: eventName,
+                    notes: tags.isEmpty ? nil : "Tags: \(tags.joined(separator: ", "))",
+                    startDate: startTime,
+                    endDate: endTime
+                )
+
+                await MainActor.run {
+                    print("✅ Timer saved to calendar: \(eventId ?? "unknown")")
+
+                    // Refresh calendar to show the new event in timeline
+                    CalendarService.shared.fetchEvents(for: startTime)
+
+                    // Notification will be sent by ToolService on successful calendar event creation
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ Failed to save timer to calendar: \(error)")
+                }
+            }
+        }
     }
     
     func loadEntries() {
