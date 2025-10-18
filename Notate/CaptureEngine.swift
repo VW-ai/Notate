@@ -157,17 +157,17 @@ final class CaptureEngine: ObservableObject {
             // Check against all enabled triggers
             let currentBuffer = String(triggerBuf)
             print("🔍 检查触发器: '\(currentBuffer)'")
-            
+
             for triggerConfig in configManager.getEnabledTriggers() {
                 if currentBuffer.hasSuffix(triggerConfig.trigger) {
                     // Found a matching trigger
-                    print("✅ 检测到触发器: '\(triggerConfig.trigger)' -> \(triggerConfig.defaultType.displayName)")
+                    print("✅ 检测到触发器: '\(triggerConfig.trigger)' -> \(triggerConfig.isTimerTrigger ? "Timer" : triggerConfig.defaultType.displayName)")
                     currentTrigger = triggerConfig.trigger
                     currentTriggerConfig = triggerConfig
                     state = State.capturing
                     captureText = ""
                     isIMEComposing = false
-                    
+
                     NotificationCenter.default.post(name: .notateDidDetectTrigger, object: triggerConfig.trigger)
                     startIdleTimer()
                     break

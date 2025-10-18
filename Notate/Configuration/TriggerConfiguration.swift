@@ -31,7 +31,6 @@ struct AppConfiguration: Codable {
             TriggerConfig(trigger: "///", defaultType: .todo),
             TriggerConfig(trigger: ",,,", defaultType: .piece),
             TriggerConfig(trigger: "，，，", defaultType: .piece),
-            TriggerConfig(trigger: ";;", defaultType: .todo),
             TriggerConfig(trigger: ";;;", defaultType: .todo, isTimerTrigger: true) // Timer triggers create calendar events, not entries
         ],
         autoClearInput: true,

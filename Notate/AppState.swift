@@ -97,6 +97,15 @@ final class AppState: ObservableObject {
                 self?.showEntryFromNotification(entryId: entryId)
             }
             .store(in: &cancellables)
+
+        // Listen for timer trigger to show tag selection popup
+        NotificationCenter.default.publisher(for: .notateDidDetectTimerTrigger)
+            .compactMap { $0.object as? TimerCaptureResult }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] result in
+                self?.showTimerTagSelection(eventName: result.eventName)
+            }
+            .store(in: &cancellables)
     }
 
     private func showEntryFromNotification(entryId: String) {
@@ -105,6 +114,13 @@ final class AppState: ObservableObject {
             selectedEntry = entry
             print("📍 Showing entry from notification: \(entry.content.prefix(50))")
         }
+    }
+
+    private func showTimerTagSelection(eventName: String) {
+        // Show timer tag selection popup window
+        let window = TimerTagSelectionWindow(eventName: eventName)
+        window.makeKeyAndOrderFront(nil)
+        print("🍅 Showing timer tag selection for: \(eventName)")
     }
     
     func loadEntries() {
