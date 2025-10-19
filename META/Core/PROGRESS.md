@@ -1,6 +1,162 @@
 # Development Progress
 
-## Session: 2025-10-18 - Timer System Implementation
+## Session: 2025-10-18 (Evening) - List Page Development & Refinement
+
+### Completed Features
+
+#### 1. List Page Selector System
+- **Location**: `Notate/Views/ListView.swift`
+- **Horizontal Selector Layout**:
+  - Three selectors in parallel: `[Years] [Modes] [Months]`
+  - 80pt top spacing to match Timeline page
+  - No dividers between selector groups
+  - Single row design for compact UI
+
+- **Year Selector**:
+  - 7 square buttons (selectedYear -3 to +3)
+  - Rounded rectangle shape with 8pt corners
+  - Light yellow background for current year
+  - Bright yellow for selected year
+  - Events fetch dynamically based on selected year
+
+- **Mode Selector**:
+  - Three modes: Notes, Both, Events
+  - Light yellow background for "Both" mode (always visible)
+  - Same styling as date selector from Timeline
+  - Mode-aware tag counts and collection counts
+
+- **Month Selector**:
+  - 12 circular month buttons (JAN-DEC) + ALL TIME
+  - Single row layout (previously 2 rows)
+  - Light yellow background for current month
+  - Light yellow background for ALL TIME button
+  - Smaller buttons (36px) to fit in one row
+
+#### 2. ItemColorManager System
+- **File**: `Notate/Managers/ItemColorManager.swift`
+- **Centralized Color Management**:
+  - Singleton manager for entry/event colors
+  - Future-ready for AI categorization
+  - Current implementations:
+    - All-day events: Light red (#FF6B6B)
+    - Regular events: Bright green (#66FF99)
+    - Entries: Bright blue (#66D9FF)
+
+- **Smart Color Application**:
+  - All-day events show date only (no time)
+  - Different date formats: "Oct 31 · 2:00 PM" vs "Oct 31"
+  - Colored vertical lines on preview cards
+
+#### 3. Recurring Events Fix
+- **Problem Solved**: Recurring events shared same ID, causing view reuse bugs
+- **Solution**: Added `uniqueID` computed property to CalendarEvent
+- **Implementation**:
+  - `uniqueID = "\(id)-\(startTime.timeIntervalSince1970)"`
+  - Each occurrence gets unique identifier
+  - Fixed ordering issues in Both and Events modes
+  - Eliminated duplicate ID warnings
+
+#### 4. Layout & Spacing Fixes
+- **Fixed Height Preview Cards**:
+  - All cards: `.frame(maxWidth: .infinity, idealHeight: 62, maxHeight: 62)`
+  - Added `.clipped()` to prevent overflow
+  - Eliminated massive gaps between events
+  - Consistent card heights across modes
+
+- **UI Consistency**:
+  - Removed dividers between collection/preview/detail panels
+  - Removed divider under search bar
+  - Removed dividers from TagManagementPanel
+  - All panels use same background (#1C1C1E)
+
+#### 5. Time Range Filtering
+- **Year-Based Filtering**:
+  - Events fetched from selected year only (Jan 1 - Dec 31)
+  - Entries filtered by selected year
+  - "ALL TIME" means all months in selected year
+
+- **Month Filtering**:
+  - Filters by selected month within selected year
+  - Works correctly with mode selection
+  - Collection counts respect time filters
+
+#### 6. Collection Count System
+- **Mode-Aware Counts**:
+  - "All" count varies based on Notes/Both/Events mode
+  - "Recent" count filters by time range and mode
+  - Tag counts respect mode, year, and month selections
+
+- **Proper Filtering**:
+  - `getAllCount()` filters by time range
+  - `getRecentCount()` filters by time range + recency
+  - `getTagCount()` filters by time range + mode
+
+### Technical Improvements
+
+1. **Data Management**:
+   - Cached all events in `@State` variable
+   - Single source of truth for event data
+   - Detail pane uses cached events instead of service
+
+2. **UnifiedItem System**:
+   - Merged entries and events for Both mode
+   - Proper sorting with stable sort algorithm
+   - Unique IDs prevent SwiftUI view reuse
+
+3. **Date Formatting**:
+   - `formattedDate()` for regular events (with time)
+   - `formattedDateOnly()` for all-day events (date only)
+   - Consistent formatting across modes
+
+4. **Layout Architecture**:
+   - Three-pane layout: 20% / 30% / 50%
+   - Fixed card heights prevent spacing issues
+   - LazyVStack with spacing: 0
+
+### Commits Made (To Be Committed)
+
+1. **List page complete implementation with selectors and color system**
+   - Created ItemColorManager.swift
+   - Modified ListView.swift (comprehensive updates)
+   - Modified CalendarService.swift (uniqueID property)
+   - Modified TagManagementPanel.swift (removed dividers)
+
+### Files Modified/Created
+
+#### Created:
+- `Notate/Managers/ItemColorManager.swift` - Centralized color management
+
+#### Modified:
+- `Notate/Views/ListView.swift` - Complete selector system, filtering, layout fixes
+- `Notate/Services/CalendarService.swift` - Added uniqueID to CalendarEvent
+- `Notate/Views/TagManagementPanel.swift` - Removed dividers
+- `Notate/Views/ContentView.swift` - Navigation tabs updated
+
+### Testing Checklist
+
+- [x] Year selector changes events displayed
+- [x] Month selector filters correctly
+- [x] Mode selector switches between Notes/Both/Events
+- [x] All-day events show in light red
+- [x] Recurring events display in correct order
+- [x] No gaps between event cards
+- [x] Collection counts update with filters
+- [x] Tag counts respect mode and time range
+- [x] Both mode merges and sorts correctly
+- [x] Events mode shows events only
+- [x] Notes mode shows entries only
+- [x] Current year/month highlighted in light yellow
+- [x] Detail view opens for both entries and events
+
+### Known Issues / Future Enhancements
+
+1. **Pin Functionality**: Added to TODO.md, not yet implemented
+2. **IME Support**: Chinese/Japanese/Korean input for search
+3. **AI Categorization**: ItemColorManager ready for future AI-based coloring
+
+---
+
+## Session: 2025-10-18 (Afternoon) - Timer System Implementation
 
 ### Completed Features
 

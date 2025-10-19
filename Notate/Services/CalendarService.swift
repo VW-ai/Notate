@@ -172,4 +172,10 @@ struct CalendarEvent: Identifiable {
             return "\(minutes)m"
         }
     }
+
+    /// Unique ID that combines event ID with start time
+    /// Ensures recurring events have unique identifiers for each occurrence
+    var uniqueID: String {
+        return "\(id)-\(startTime.timeIntervalSince1970)"
+    }
 }

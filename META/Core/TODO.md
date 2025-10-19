@@ -2,21 +2,30 @@
 
 ## High Priority
 
-### UI Responsiveness & Layout (2025-10-18)
-- [ ] **Different Proportion Handling**
-  - Implement responsive layout for different screen sizes
-  - Handle ultra-wide and narrow aspect ratios
-  - Adjust panel widths dynamically based on available space
-  - Support minimum/maximum window sizes
-  - Optimize for MacBook vs external monitor layouts
+### List Page Enhancements (2025-10-18)
+- [x] **Year/Month/Mode Selector System** ✅ Completed
+  - Horizontal layout with three selector groups
+  - Year selector with square buttons
+  - Month selector in single row
+  - Mode selector (Notes/Both/Events)
+  - Light yellow highlights for current year/month
 
-### New Application Pages (2025-10-18)
-- [ ] **Notes Page Development**
-  - Design and implement dedicated notes section
-  - Determine notes vs entries distinction
-  - Notes organization and categorization
-  - Search and filtering for notes
-  - Rich text or markdown support
+- [x] **ItemColorManager for Event/Entry Colors** ✅ Completed
+  - Centralized color management system
+  - All-day events in light red
+  - Regular events in green, entries in blue
+  - Future-ready for AI categorization
+
+- [x] **Recurring Events Fix** ✅ Completed
+  - Added uniqueID to CalendarEvent
+  - Fixed ordering and view reuse issues
+  - Eliminated duplicate ID warnings
+
+- [x] **Layout & Spacing Fixes** ✅ Completed
+  - Fixed height preview cards (62px)
+  - Removed all dividers
+  - Consistent background colors
+  - Detail view now opens correctly
 
 - [ ] **Pin Functionality for Entries and Events** (2025-10-18)
   - Add pin/unpin action to entries and calendar events
@@ -26,6 +35,15 @@
   - Keyboard shortcut for pin/unpin
   - Pinned items should stay at top of lists
 
+### UI Responsiveness & Layout (2025-10-18)
+- [ ] **Different Proportion Handling**
+  - Implement responsive layout for different screen sizes
+  - Handle ultra-wide and narrow aspect ratios
+  - Adjust panel widths dynamically based on available space
+  - Support minimum/maximum window sizes
+  - Optimize for MacBook vs external monitor layouts
+
+### New Application Pages (2025-10-18)
 - [ ] **Settings Page Development**
   - Centralized settings interface
   - Trigger configuration UI

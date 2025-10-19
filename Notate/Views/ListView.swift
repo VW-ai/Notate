@@ -6,6 +6,7 @@ struct ListView: View {
     @StateObject private var tagStore = TagStore.shared
     @StateObject private var calendarService = CalendarService.shared
     private let tagColorManager = TagColorManager.shared
+    private let itemColorManager = ItemColorManager.shared
 
     // UI State
     @State private var searchText: String = ""
@@ -16,6 +17,7 @@ struct ListView: View {
     @State private var sortAscending: Bool = false
     @State private var viewMode: ViewMode = .notes  // Notes, Both, or Events
     @State private var selectedTimeRange: TimeRange = .allTime
+    @State private var selectedYear: Int = Calendar.current.component(.year, from: Date())
     @State private var allCalendarEvents: [CalendarEvent] = []  // Cached all events
 
     enum ViewMode: String, CaseIterable {
@@ -57,17 +59,28 @@ struct ListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Mode selector at top
-            modeSelector
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+            // Top spacer to match Timeline page
+            Spacer()
+                .frame(height: 80)
                 .background(Color(hex: "#1C1C1E"))
 
-            // Time range selector
-            timeRangeSelector
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color(hex: "#1C1C1E"))
+            // Horizontal layout: [years] [modes] [months]
+            HStack(spacing: 20) {
+                // Year selector (left)
+                yearSelector
+                    .frame(maxWidth: .infinity)
+
+                // Mode selector (center)
+                modeSelector
+                    .frame(maxWidth: .infinity)
+
+                // Time range selector (right - months)
+                timeRangeSelector
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Color(hex: "#1C1C1E"))
 
             // Three-pane layout
             GeometryReader { geometry in
@@ -75,18 +88,12 @@ struct ListView: View {
                     // Left Pane: Collections & Filters
                     collectionsPane
                         .frame(width: geometry.size.width * 0.20)
-                        .background(Color(hex: "#2C2C2E"))
-
-                    Divider()
-                        .background(Color(hex: "#3A3A3C"))
+                        .background(Color(hex: "#1C1C1E"))
 
                     // Middle Pane: Note Previews
                     notePreviewsPane
                         .frame(width: geometry.size.width * 0.30)
                         .background(Color(hex: "#1C1C1E"))
-
-                    Divider()
-                        .background(Color(hex: "#3A3A3C"))
 
                     // Right Pane: Detail View
                     detailPane
@@ -104,14 +111,10 @@ struct ListView: View {
     // MARK: - Mode Selector
 
     private var modeSelector: some View {
-        HStack(spacing: 0) {
-            Spacer()
-            HStack(spacing: 16) {
-                ForEach(ViewMode.allCases, id: \.self) { mode in
-                    modeButton(mode: mode)
-                }
+        HStack(spacing: 16) {
+            ForEach(ViewMode.allCases, id: \.self) { mode in
+                modeButton(mode: mode)
             }
-            Spacer()
         }
     }
 
@@ -119,10 +122,12 @@ struct ListView: View {
         let isSelected = viewMode == mode
         let isBoth = mode == .both
 
-        // Match date selector styling
+        // Match date selector styling with light yellow for Both
         let backgroundColor: Color = {
             if isSelected {
                 return Color(hex: "#FFD60A") // Same bright yellow as date selector
+            } else if isBoth {
+                return Color(hex: "#FFD60A").opacity(0.15) // Light yellow background for Both
             } else {
                 return Color(hex: "#3A3A3C") // Default gray
             }
@@ -160,40 +165,94 @@ struct ListView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Year Selector
+
+    private var yearSelector: some View {
+        // Year buttons in horizontal line
+        HStack(spacing: 12) {
+            ForEach(0..<7, id: \.self) { index in
+                let year = selectedYear - 3 + index  // Current year in the middle (index 3)
+                yearButton(for: year)
+            }
+        }
+    }
+
+    private func yearButton(for year: Int) -> some View {
+        let isSelected = selectedYear == year
+        let isCurrentYear = year == Calendar.current.component(.year, from: Date())
+        let size: CGFloat = 44
+
+        let backgroundColor: Color = {
+            if isSelected {
+                return Color(hex: "#FFD60A")
+            } else if isCurrentYear {
+                return Color(hex: "#FFD60A").opacity(0.15)  // Light yellow for current year
+            } else {
+                return Color(hex: "#3A3A3C")
+            }
+        }()
+
+        let textColor: Color = {
+            if isSelected {
+                return Color(hex: "#1C1C1E")
+            } else {
+                return .secondary
+            }
+        }()
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                selectedYear = year
+                selectedItemID = nil  // Clear selection when changing year
+                fetchAllCalendarEvents()  // Refresh events for new year
+            }
+        }) {
+            Text(String(year))
+                .font(.system(size: 9, weight: isSelected ? .bold : .semibold))
+                .foregroundColor(textColor)
+                .frame(width: size, height: size)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(backgroundColor)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Time Range Selector
 
     private var timeRangeSelector: some View {
-        VStack(spacing: 10) {
-            // Top row: 5 months with ALL TIME in center
-            HStack(spacing: 12) {
-                Spacer()
-                timeRangeButton(for: .month(1))  // January
-                timeRangeButton(for: .month(2))  // February
-                timeRangeButton(for: .allTime, isAllTime: true)  // ALL TIME (bigger)
-                timeRangeButton(for: .month(3))  // March
-                timeRangeButton(for: .month(4))  // April
-                Spacer()
+        HStack(spacing: 10) {
+            // All 12 months in a single row
+            ForEach(1...12, id: \.self) { month in
+                timeRangeButton(for: .month(month))
             }
-
-            // Bottom row: 7 months
-            HStack(spacing: 12) {
-                Spacer()
-                ForEach(5...11, id: \.self) { month in
-                    timeRangeButton(for: .month(month))
-                }
-                timeRangeButton(for: .month(12))  // December
-                Spacer()
-            }
+            // ALL TIME at the end
+            timeRangeButton(for: .allTime, isAllTime: true)
         }
     }
 
     private func timeRangeButton(for range: TimeRange, isAllTime: Bool = false) -> some View {
         let isSelected = selectedTimeRange == range
-        let size: CGFloat = isAllTime ? 56 : 44  // ALL TIME is bigger
+        let size: CGFloat = isAllTime ? 48 : 36  // Smaller size for single row
+
+        // Check if this is the current month
+        let isCurrentMonth: Bool = {
+            if case .month(let month) = range {
+                let calendar = Calendar.current
+                let currentMonth = calendar.component(.month, from: Date())
+                return month == currentMonth
+            }
+            return false
+        }()
 
         let backgroundColor: Color = {
             if isSelected {
                 return Color(hex: "#FFD60A")
+            } else if isAllTime {
+                return Color(hex: "#FFD60A").opacity(0.15)  // Light yellow background for ALL TIME
+            } else if isCurrentMonth {
+                return Color(hex: "#FFD60A").opacity(0.15)  // Light yellow background for current month
             } else {
                 return Color(hex: "#3A3A3C")
             }
@@ -213,9 +272,11 @@ struct ListView: View {
                 selectedItemID = nil  // Clear selection when changing time range
             }
         }) {
-            Text(range.displayName.prefix(3))  // Show first 3 letters (JAN, FEB, ALL)
-                .font(.system(size: isAllTime ? 10 : 9, weight: isSelected ? .bold : .semibold))
+            Text(isAllTime ? "ALL\nTIME" : String(range.displayName.prefix(3)))
+                .font(.system(size: isAllTime ? 9 : 8, weight: isSelected ? .bold : .semibold))
                 .foregroundColor(textColor)
+                .multilineTextAlignment(.center)
+                .lineSpacing(isAllTime ? -2 : 0)
                 .frame(width: size, height: size)
                 .background(
                     Circle()
@@ -452,18 +513,15 @@ struct ListView: View {
             .padding(.vertical, 12)
             .background(Color(hex: "#1C1C1E"))
 
-            Divider()
-                .background(Color(hex: "#3A3A3C"))
-
             // Note/Event list
             ScrollView {
-                LazyVStack(spacing: 1) {
+                LazyVStack(spacing: 0) {
                     if viewMode == .both {
                         // Both mode: merge and sort entries and events together
-                        ForEach(mergedAndSortedItems, id: \.id) { item in
+                        ForEach(mergedAndSortedItems) { item in
                             if item.isEntry, let entry = item.entry {
                                 notePreviewCard(entry: entry)
-                            } else if let event = item.event {
+                            } else if !item.isEntry, let event = item.event {
                                 eventPreviewCard(event: event)
                             }
                         }
@@ -474,7 +532,8 @@ struct ListView: View {
                                 notePreviewCard(entry: entry)
                             }
                         } else if viewMode == .events {
-                            ForEach(sortedAndFilteredEvents, id: \.id) { event in
+                            let _ = print("🔍 Events mode: rendering \(sortedAndFilteredEvents.count) events")
+                            ForEach(sortedAndFilteredEvents, id: \.uniqueID) { event in
                                 eventPreviewCard(event: event)
                             }
                         }
@@ -502,7 +561,9 @@ struct ListView: View {
         }
 
         init(event: CalendarEvent) {
-            self.id = event.id
+            // For recurring events, multiple occurrences share the same ID
+            // Make it unique by combining event ID with start time timestamp
+            self.id = "\(event.id)-\(event.startTime.timeIntervalSince1970)"
             self.date = event.startTime
             self.isEntry = false
             self.entry = nil
@@ -519,8 +580,14 @@ struct ListView: View {
         // Add events
         items.append(contentsOf: sortedAndFilteredEvents.map { UnifiedItem(event: $0) })
 
-        // Sort by date
-        items.sort { sortAscending ? $0.date < $1.date : $0.date > $1.date }
+        // Sort by date - ensure stable sorting
+        items.sort { item1, item2 in
+            if sortAscending {
+                return item1.date < item2.date
+            } else {
+                return item1.date > item2.date
+            }
+        }
 
         return items
     }
@@ -533,9 +600,9 @@ struct ListView: View {
             selectedItemType = .entry
         }) {
             HStack(spacing: 0) {
-                // Bright blue vertical line for notes
+                // Colored vertical line for notes
                 Rectangle()
-                    .fill(Color(hex: "#66D9FF"))  // Bright, light blue (almost white-blue)
+                    .fill(itemColorManager.colorForEntry(entry))
                     .frame(width: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -574,28 +641,37 @@ struct ListView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, idealHeight: 62, maxHeight: 62)
+        .clipped()
     }
 
     private func eventPreviewCard(event: CalendarEvent) -> some View {
-        let isSelected = selectedItemID == event.id
+        let isSelected = selectedItemID == event.uniqueID
         let eventTags = SimpleEventDetailView.extractTags(from: event.notes)
 
         return Button(action: {
-            selectedItemID = event.id
+            selectedItemID = event.uniqueID
             selectedItemType = .event
         }) {
             HStack(spacing: 0) {
-                // Bright green vertical line for events
+                // Colored vertical line for events (light blue for all-day events)
                 Rectangle()
-                    .fill(Color(hex: "#66FF99"))  // Bright, light green
+                    .fill(itemColorManager.colorForEvent(event))
                     .frame(width: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
                     // Header: timestamp and primary tag
                     HStack {
-                        Text(formattedDate(event.startTime))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                        // Show date only for all-day events, date+time for regular events
+                        if event.isAllDay {
+                            Text(formattedDateOnly(event.startTime))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text(formattedDate(event.startTime))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
 
                         Spacer()
 
@@ -626,6 +702,8 @@ struct ListView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, idealHeight: 62, maxHeight: 62)
+        .clipped()
     }
 
     // MARK: - Detail Pane
@@ -640,7 +718,7 @@ struct ListView: View {
                             .padding(20)
                     }
                 } else if selectedItemType == .event,
-                          let event = allCalendarEvents.first(where: { $0.id == itemID }) {
+                          let event = allCalendarEvents.first(where: { $0.uniqueID == itemID }) {
                     ScrollView {
                         SimpleEventDetailView(event: event)
                             .padding(20)
@@ -777,7 +855,13 @@ struct ListView: View {
         }
 
         // Apply sorting (only date now)
-        events.sort { sortAscending ? $0.startTime < $1.startTime : $0.startTime > $1.startTime }
+        events.sort { event1, event2 in
+            if sortAscending {
+                return event1.startTime < event2.startTime
+            } else {
+                return event1.startTime > event2.startTime
+            }
+        }
 
         return events
     }
@@ -790,97 +874,136 @@ struct ListView: View {
         return formatter.string(from: date)
     }
 
-    /// Get tag count based on current view mode
+    private func formattedDateOnly(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM dd"
+        return formatter.string(from: date)
+    }
+
+    /// Get tag count based on current view mode and time range
     private func getTagCount(for tag: String, mode: ViewMode) -> Int {
         switch mode {
         case .notes:
-            // Count only entries with this tag
-            return appState.entries.filter { $0.tags.contains(tag) }.count
+            // Count only entries with this tag, filtered by time range
+            let timeFiltered = filterByTimeRange(entries: appState.entries)
+            return timeFiltered.filter { $0.tags.contains(tag) }.count
         case .events:
-            // Count only events with this tag
-            let allEvents = calendarService.events
-            return allEvents.filter { event in
+            // Count only events with this tag, filtered by time range
+            let timeFiltered = filterByTimeRange(events: allCalendarEvents)
+            return timeFiltered.filter { event in
                 SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
             }.count
         case .both:
-            // Use TagStore which combines both
-            return tagStore.tagCounts[tag] ?? 0
+            // Combine both entry and event counts, filtered by time range
+            let timeFilteredEntries = filterByTimeRange(entries: appState.entries)
+            let timeFilteredEvents = filterByTimeRange(events: allCalendarEvents)
+            let entryCount = timeFilteredEntries.filter { $0.tags.contains(tag) }.count
+            let eventCount = timeFilteredEvents.filter { event in
+                SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
+            }.count
+            return entryCount + eventCount
         }
     }
 
-    /// Get "All" count based on current view mode
+    /// Get "All" count based on current view mode and time range
     private func getAllCount() -> Int {
         switch viewMode {
         case .notes:
-            return appState.entries.count
+            return filterByTimeRange(entries: appState.entries).count
         case .events:
-            return calendarService.events.count
+            return filterByTimeRange(events: allCalendarEvents).count
         case .both:
-            return appState.entries.count + calendarService.events.count
+            let entryCount = filterByTimeRange(entries: appState.entries).count
+            let eventCount = filterByTimeRange(events: allCalendarEvents).count
+            return entryCount + eventCount
         }
     }
 
-    /// Get "Recent" count based on current view mode
+    /// Get "Recent" count based on current view mode and time range
     private func getRecentCount() -> Int {
         let calendar = Calendar.current
         let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
 
         switch viewMode {
         case .notes:
-            return appState.entries.filter { $0.createdAt >= twoDaysAgo }.count
+            let timeFiltered = filterByTimeRange(entries: appState.entries)
+            return timeFiltered.filter { $0.createdAt >= twoDaysAgo }.count
         case .events:
-            return calendarService.events.filter { $0.startTime >= twoDaysAgo }.count
+            let timeFiltered = filterByTimeRange(events: allCalendarEvents)
+            return timeFiltered.filter { $0.startTime >= twoDaysAgo }.count
         case .both:
-            let recentEntries = appState.entries.filter { $0.createdAt >= twoDaysAgo }.count
-            let recentEvents = calendarService.events.filter { $0.startTime >= twoDaysAgo }.count
+            let timeFilteredEntries = filterByTimeRange(entries: appState.entries)
+            let timeFilteredEvents = filterByTimeRange(events: allCalendarEvents)
+            let recentEntries = timeFilteredEntries.filter { $0.createdAt >= twoDaysAgo }.count
+            let recentEvents = timeFilteredEvents.filter { $0.startTime >= twoDaysAgo }.count
             return recentEntries + recentEvents
         }
     }
 
-    /// Fetch all calendar events from 2-year range
+    /// Fetch all calendar events from selected year only
     private func fetchAllCalendarEvents() {
         Task {
             let calendar = Calendar.current
             let now = Date()
-            let startDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
-            let endDate = calendar.date(byAdding: .year, value: 1, to: now) ?? now
+
+            // Get start of selected year (January 1, YYYY 00:00:00)
+            var startComponents = DateComponents()
+            startComponents.year = selectedYear
+            startComponents.month = 1
+            startComponents.day = 1
+            let startDate = calendar.date(from: startComponents) ?? now
+
+            // Get end of selected year (December 31, YYYY 23:59:59)
+            var endComponents = DateComponents()
+            endComponents.year = selectedYear
+            endComponents.month = 12
+            endComponents.day = 31
+            endComponents.hour = 23
+            endComponents.minute = 59
+            endComponents.second = 59
+            let endDate = calendar.date(from: endComponents) ?? now
 
             let events = await calendarService.fetchAllEvents(from: startDate, to: endDate)
             await MainActor.run {
                 allCalendarEvents = events
-                print("📅 Loaded \(events.count) calendar events for List page")
+                print("📅 Loaded \(events.count) calendar events for year \(selectedYear)")
             }
         }
     }
 
-    /// Filter entries by selected time range
+    /// Filter entries by selected time range and year
     private func filterByTimeRange(entries: [Entry]) -> [Entry] {
         switch selectedTimeRange {
         case .allTime:
-            return entries
-        case .month(let month):
+            // Filter by selected year only
             let calendar = Calendar.current
-            let currentYear = calendar.component(.year, from: Date())
+            return entries.filter { entry in
+                let entryYear = calendar.component(.year, from: entry.createdAt)
+                return entryYear == selectedYear
+            }
+        case .month(let month):
+            // Filter by selected year and month
+            let calendar = Calendar.current
             return entries.filter { entry in
                 let entryMonth = calendar.component(.month, from: entry.createdAt)
                 let entryYear = calendar.component(.year, from: entry.createdAt)
-                return entryMonth == month && entryYear == currentYear
+                return entryMonth == month && entryYear == selectedYear
             }
         }
     }
 
-    /// Filter events by selected time range
+    /// Filter events by selected time range and year
     private func filterByTimeRange(events: [CalendarEvent]) -> [CalendarEvent] {
         switch selectedTimeRange {
         case .allTime:
+            // All events already filtered by year in fetchAllCalendarEvents
             return events
         case .month(let month):
+            // Filter by selected month (year already filtered in fetch)
             let calendar = Calendar.current
-            let currentYear = calendar.component(.year, from: Date())
             return events.filter { event in
                 let eventMonth = calendar.component(.month, from: event.startTime)
-                let eventYear = calendar.component(.year, from: event.startTime)
-                return eventMonth == month && eventYear == currentYear
+                return eventMonth == month
             }
         }
     }

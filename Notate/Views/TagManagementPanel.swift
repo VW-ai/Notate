@@ -105,21 +105,10 @@ struct TagManagementPanel: View {
         VStack(spacing: 0) {
             headerSection
 
-            Divider()
-                .background(Color.white.opacity(0.15))
-                .padding(.horizontal, 16)
-
             tagListSection
         }
         .frame(maxWidth: availableWidth, maxHeight: .infinity)
         .background(Color(hex: "#1C1C1E")) // Same as main timeline background
-        .overlay(
-            // Subtle separator line on the right edge
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 1),
-            alignment: .trailing
-        )
         .onAppear {
             // Cache tag list on appear
             cachedTagCounts = tagCounts
