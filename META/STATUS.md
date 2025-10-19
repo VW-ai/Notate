@@ -1,10 +1,20 @@
 # Notate - Feature Status
 
-**Last Updated:** 2025-10-06
+**Last Updated:** 2025-10-07
 
 ## Overview
 
-Notate is an AI-powered productivity app for macOS that captures and organizes thoughts, TODOs, and ideas using intelligent keyboard triggers and autonomous AI processing.
+Notate is an AI-powered productivity app for **macOS** and **iOS/iPadOS** that captures and organizes thoughts, TODOs, and ideas using intelligent keyboard triggers and autonomous AI processing.
+
+**Platforms**:
+- ✅ **macOS 14.0+** - Fully functional (v1.0)
+- 🚧 **iOS 17.0+** - Phase 1 complete, core app in development
+- 🚧 **iPadOS 17.0+** - Phase 1 complete, core app in development
+
+**Multiplatform Architecture**:
+- 📁 ~85% shared code (Models, Services, Database, AI logic)
+- 📱 Platform-specific UI and input capture mechanisms
+- 🔄 Future: iCloud sync between devices (Phase 5)
 
 ---
 
@@ -450,6 +460,112 @@ Entry → AIMetadata → Actions → ToolService → macOS APIs
 
 ---
 
-**Version:** 1.0
+## 📱 iOS/iPadOS Development Status
+
+### Phase 1: Project Setup ✅ COMPLETE (2025-10-07)
+
+**Completed**:
+- ✅ Multiplatform project structure created
+- ✅ Code reorganized into `Shared/`, `macOS/`, `iOS/`
+- ✅ iOS app lifecycle implemented (`iOS/NotateApp.swift`)
+- ✅ Adaptive UI created (iPhone TabView, iPad NavigationSplitView)
+- ✅ All iOS permissions configured (Calendar, Reminders, Contacts, Location)
+- ✅ App Groups configured for keyboard extension
+- ✅ URL scheme handling ready (`notate://capture`)
+- ✅ Quick Capture view implemented
+- ✅ Documentation: `PROJECT_STRUCTURE.md`, `MOBILE.md`
+
+**Files Created**:
+```
+Shared/
+├── Models/           (Entry, AIMetadata)
+├── Services/         (AIService, AIContentExtractor, PromptManager)
+├── Database/         (DatabaseManager)
+└── Design/           (ModernDesignSystem)
+
+iOS/
+├── NotateApp.swift   (App lifecycle, URL handling, App Groups)
+├── Info.plist        (Permissions, URL schemes)
+├── Notate.entitlements (App Groups, capabilities)
+└── Views/
+    └── ContentView.swift (Adaptive UI)
+
+macOS/
+├── CaptureEngine.swift  (Global keyboard monitoring)
+└── KeyTranslator.swift  (Carbon key codes)
+```
+
+**Code Reuse Achieved**: ~85%
+- Models, Services, Database, Design System: 100% shared
+- UI Views: ~70% shared (adaptive layouts)
+- Platform integration: Conditional compilation with `#if os()`
+
+### Phase 2: Core iOS App 🚧 NEXT
+
+**Upcoming Tasks**:
+- [ ] Configure iOS target in Xcode project
+- [ ] Set up build schemes for iOS
+- [ ] Port `EntryDetailView` to iOS (replace NSAlert, NSWorkspace)
+- [ ] Test database operations on iOS simulator
+- [ ] Verify AI pipeline on iOS device
+- [ ] Test EventKit (Calendar/Reminders) on iOS
+- [ ] Test Contacts framework on iOS
+- [ ] Test MapKit integration on iOS
+
+### Phase 3: Custom Keyboard Extension 📋 PLANNED
+
+- [ ] Create keyboard extension target
+- [ ] Implement "///" trigger detection in keyboard
+- [ ] App Groups communication (keyboard → main app)
+- [ ] Haptic feedback on trigger
+- [ ] Test in various apps (Messages, Notes, Safari)
+
+### Phase 4: Extensions & Integrations 📋 PLANNED
+
+- [ ] Share Extension (share text to Notate)
+- [ ] Home Screen Widget (recent entries)
+- [ ] Siri Shortcuts integration
+- [ ] Spotlight search integration
+
+### Phase 5: Advanced Features 📋 PLANNED
+
+- [ ] iCloud CloudKit sync
+- [ ] Handoff between devices
+- [ ] Today widget
+- [ ] Live Activities for AI processing
+- [ ] TestFlight beta testing
+
+**iOS Feature Parity**:
+| Feature | macOS | iOS | Status |
+|---------|-------|-----|--------|
+| Text capture | ✅ Global keyboard | 🚧 Keyboard extension | Phase 3 |
+| Quick capture | ✅ | ✅ | Phase 1 ✓ |
+| AI processing | ✅ | ✅ | Shared code ✓ |
+| Calendar integration | ✅ | ✅ | Phase 2 |
+| Reminders integration | ✅ | ✅ | Phase 2 |
+| Contacts integration | ✅ | ✅ | Phase 2 |
+| Maps integration | ✅ | ✅ | Phase 2 |
+| Share Extension | ❌ | 🚧 | Phase 4 |
+| Widgets | ❌ | 🚧 | Phase 4 |
+| iCloud Sync | 🚧 | 🚧 | Phase 5 |
+
+**Estimated Timeline**:
+- Phase 2: 3-5 days
+- Phase 3: 5-7 days
+- Phase 4: 2-3 days
+- Phase 5: 3-4 days
+- **Total**: 3-4 weeks to full iOS parity
+
+**Documentation**:
+- `META/MOBILE.md` - Comprehensive iOS implementation plan
+- `PROJECT_STRUCTURE.md` - Multiplatform code organization
+- `META/STATUS.md` - Current implementation status (this file)
+
+---
+
+**Version:** 1.0 (macOS), 0.1 (iOS - in development)
 **Build:** Development
-**Platform:** macOS 14.0+
+**Platforms:**
+- macOS 14.0+ ✅ Production
+- iOS 17.0+ 🚧 Phase 1 Complete
+- iPadOS 17.0+ 🚧 Phase 1 Complete

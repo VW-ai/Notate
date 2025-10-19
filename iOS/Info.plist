@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Information -->
+	<key>CFBundleDisplayName</key>
+	<string>Notate</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+
+	<!-- Privacy Permissions -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>Notate needs access to Calendar to automatically create events from your TODOs and meeting notes.</string>
+
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Notate needs full access to Calendar to create, update, and manage calendar events from your captured content.</string>
+
+	<key>NSRemindersUsageDescription</key>
+	<string>Notate needs access to Reminders to automatically create tasks from your captured TODOs.</string>
+
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Notate needs full access to Reminders to create, update, and manage reminders from your captured content.</string>
+
+	<key>NSContactsUsageDescription</key>
+	<string>Notate needs access to Contacts to save contact information from your entries.</string>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Notate uses your location to provide context-aware suggestions and nearby recommendations.</string>
+
+	<!-- URL Schemes -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.notate.url</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>notate</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- App Groups (for Keyboard Extension) -->
+	<key>AppGroupIdentifier</key>
+	<string>group.com.notate.shared</string>
+
+	<!-- Scene Configuration -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+
+	<!-- Supported Devices -->
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer> <!-- iPhone -->
+		<integer>2</integer> <!-- iPad -->
+	</array>
+
+	<!-- Supported Orientations (iPhone) -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- Supported Orientations (iPad) -->
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- Minimum iOS Version -->
+	<key>MinimumOSVersion</key>
+	<string>17.0</string>
+
+	<!-- Launch Screen -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIImageName</key>
+		<string>LaunchImage</string>
+		<key>UIColorName</key>
+		<string>LaunchColor</string>
+	</dict>
+
+	<!-- App requires iPhone features -->
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+
+	<!-- Status Bar Style -->
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+
+	<!-- Supports Dark Mode -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Automatic</string>
+</dict>
+</plist>
