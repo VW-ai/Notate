@@ -374,32 +374,43 @@ struct TagManagementPanel: View {
 
         // Store the tag and affected items for undo
         let entriesWithTag = appState.entries.filter { $0.tags.contains(tag) }.map { $0.id }
-        let eventsWithTag = calendarService.events.filter { event in
-            SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
-        }.map { $0.id }
 
-        print("🔍 Deleting tag '\(tag)':")
-        print("   - Found \(entriesWithTag.count) entries with tag")
-        print("   - Found \(eventsWithTag.count) events with tag")
-        print("   - Total calendar events available: \(calendarService.events.count)")
+        // Fetch ALL events (same range as TagStore) to find events with this tag
+        Task {
+            let calendar = Calendar.current
+            let now = Date()
+            let startDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
+            let endDate = calendar.date(byAdding: .year, value: 1, to: now) ?? now
 
-        deletedTag = tag
-        deletedTagData = (entries: entriesWithTag, events: eventsWithTag)
+            let allEvents = await calendarService.fetchAllEvents(from: startDate, to: endDate)
+            let eventsWithTag = allEvents.filter { event in
+                SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
+            }.map { $0.id }
 
-        // Actually delete the tag from all entries and events
-        performTagDeletion(tag, entries: entriesWithTag, events: eventsWithTag)
+            await MainActor.run {
+                print("🔍 Deleting tag '\(tag)':")
+                print("   - Found \(entriesWithTag.count) entries with tag")
+                print("   - Found \(eventsWithTag.count) events with tag (searched \(allEvents.count) total events)")
 
-        // Set up undo timer (30 seconds)
-        undoTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
-            // Clear undo data after timeout
-            deletedTag = nil
-            deletedTagData = nil
+                deletedTag = tag
+                deletedTagData = (entries: entriesWithTag, events: eventsWithTag)
+
+                // Actually delete the tag from all entries and events (pass allEvents for lookup)
+                performTagDeletion(tag, entries: entriesWithTag, events: eventsWithTag, allEvents: allEvents)
+
+                // Set up undo timer (30 seconds)
+                undoTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
+                    // Clear undo data after timeout
+                    deletedTag = nil
+                    deletedTagData = nil
+                }
+
+                print("🗑️ Deleted tag '\(tag)' from \(entriesWithTag.count) entries and \(eventsWithTag.count) events (Cmd+Z to undo within 30s)")
+            }
         }
-
-        print("🗑️ Deleted tag '\(tag)' from \(entriesWithTag.count) entries and \(eventsWithTag.count) events (Cmd+Z to undo within 30s)")
     }
 
-    private func performTagDeletion(_ tag: String, entries: [String], events: [String]) {
+    private func performTagDeletion(_ tag: String, entries: [String], events: [String], allEvents: [CalendarEvent]) {
         // Remove from entries
         for entryId in entries {
             if let entry = appState.entries.first(where: { $0.id == entryId }) {
@@ -413,7 +424,7 @@ struct TagManagementPanel: View {
         Task {
             // Process all event updates
             for eventId in events {
-                if let event = calendarService.events.first(where: { $0.id == eventId }) {
+                if let event = allEvents.first(where: { $0.id == eventId }) {
                     var tags = SimpleEventDetailView.extractTags(from: event.notes)
                     print("🔍 Event '\(event.title)' before deletion - tags: \(tags)")
                     tags.removeAll { $0 == tag }
@@ -434,9 +445,6 @@ struct TagManagementPanel: View {
                             startDate: nil
                         )
                         print("✅ Successfully updated event '\(event.title)' to remove tag '\(tag)'")
-                        await MainActor.run {
-                            CalendarService.shared.fetchEvents(for: event.startTime)
-                        }
                     } catch {
                         print("❌ Failed to remove tag '\(tag)' from event '\(event.title)': \(error)")
                     }
@@ -448,6 +456,8 @@ struct TagManagementPanel: View {
                 // Give calendar service a longer moment to process all calendar updates
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     tagStore.refreshAllTags()
+                    // Also refresh today's events in case user is viewing today
+                    CalendarService.shared.fetchEvents(for: Date())
                     print("✅ TagStore refreshed after tag deletion (delayed)")
                 }
             }
