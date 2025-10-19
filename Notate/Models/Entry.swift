@@ -4,15 +4,12 @@ import SQLite3
 // MARK: - Entry Types
 enum EntryType: String, CaseIterable, Codable {
     case todo = "todo"
-    case thought = "thought" // Legacy, will be migrated to piece
-    case piece = "piece"
+    case thought = "thought" // Legacy, will be migrated to todo
+    case piece = "piece" // Legacy, will be migrated to todo
 
     var displayName: String {
-        switch self {
-        case .todo: return "TODO"
-        case .thought: return "Piece" // Display as Piece
-        case .piece: return "Piece"
-        }
+        // All entries are now called "Notes"
+        return "Note"
     }
 }
 

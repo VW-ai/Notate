@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var showingAddTrigger = false
     @State private var newTriggerText = ""
     @State private var newTriggerType: EntryType = EntryType.todo
+    @State private var newTriggerIsTimer = false
     @State private var claudeApiKey = ""
     @State private var showingApiKeyField = false
 
@@ -344,68 +345,143 @@ struct SettingsView: View {
     }
 
     private var addTriggerSheet: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
             // Header
             HStack {
                 Text("Add New Trigger")
                     .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.white)
 
+                Spacer()
+
+                Button(action: {
+                    showingAddTrigger = false
+                    newTriggerText = ""
+                    newTriggerType = .todo
+                    newTriggerIsTimer = false
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 20)
+
+            // Divider
+            Rectangle()
+                .fill(Color(hex: "#3A3A3C").opacity(0.3))
+                .frame(height: 1)
+
+            // Form
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Trigger Text")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                    TextField("e.g., !!!", text: $newTriggerText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+
+                // Type selector: Note or Timer
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Trigger Type")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+
+                    HStack(spacing: 12) {
+                        // Note button
+                        Button(action: {
+                            newTriggerIsTimer = false
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "note.text")
+                                    .font(.system(size: 12))
+                                Text("Note")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundColor(newTriggerIsTimer ? .white.opacity(0.6) : Color(hex: "#1C1C1E"))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(newTriggerIsTimer ? Color(hex: "#3A3A3C") : Color(hex: "#FFD60A"))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+
+                        // Timer button
+                        Button(action: {
+                            newTriggerIsTimer = true
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "timer")
+                                    .font(.system(size: 12))
+                                Text("Timer")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundColor(newTriggerIsTimer ? Color(hex: "#1C1C1E") : .white.opacity(0.6))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(newTriggerIsTimer ? Color(hex: "#FFD60A") : Color(hex: "#3A3A3C"))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 24)
+
+            Spacer()
+
+            // Actions
+            Rectangle()
+                .fill(Color(hex: "#3A3A3C").opacity(0.3))
+                .frame(height: 1)
+
+            HStack(spacing: 12) {
                 Spacer()
 
                 Button("Cancel") {
                     showingAddTrigger = false
                     newTriggerText = ""
                     newTriggerType = .todo
+                    newTriggerIsTimer = false
                 }
-            }
-
-            // Form
-            VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Trigger Text")
-                        .font(.system(size: 14, weight: .medium))
-                    TextField("e.g., !!!", text: $newTriggerText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Default Type")
-                        .font(.system(size: 14, weight: .medium))
-                    Picker("Type", selection: $newTriggerType) {
-                        ForEach(EntryType.allCases, id: \.self) { type in
-                            Text(type.displayName).tag(type)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
-            }
-
-            // Actions
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    showingAddTrigger = false
-                    newTriggerText = ""
-                    newTriggerType = .todo
-                }
-                .buttonStyle(.bordered)
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(hex: "#3A3A3C"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .buttonStyle(.plain)
 
                 Button("Add Trigger") {
                     if !newTriggerText.isEmpty && appState.configManager.validateTrigger(newTriggerText) {
-                        appState.configManager.addTrigger(newTriggerText, defaultType: newTriggerType)
+                        appState.configManager.addTrigger(newTriggerText, defaultType: .todo, isTimerTrigger: newTriggerIsTimer)
                         showingAddTrigger = false
                         newTriggerText = ""
                         newTriggerType = .todo
+                        newTriggerIsTimer = false
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .foregroundColor(Color(hex: "#1C1C1E"))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(hex: "#FFD60A"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .buttonStyle(.plain)
                 .disabled(newTriggerText.isEmpty || !appState.configManager.validateTrigger(newTriggerText))
+                .opacity((newTriggerText.isEmpty || !appState.configManager.validateTrigger(newTriggerText)) ? 0.5 : 1.0)
             }
-
-            Spacer()
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
         }
-        .padding(24)
-        .frame(width: 400, height: 300)
+        .frame(width: 450, height: 340)
         .background(Color(hex: "#2C2C2E"))
+        .cornerRadius(12)
     }
 
     // MARK: - Modern Components
@@ -485,11 +561,23 @@ struct SettingsView: View {
             Spacer()
 
             // Controls
-            Toggle("", isOn: Binding(
-                get: { trigger.isEnabled },
-                set: { appState.configManager.updateTrigger(id: trigger.id, isEnabled: $0) }
-            ))
-            .toggleStyle(SwitchToggleStyle())
+            HStack(spacing: 12) {
+                Toggle("", isOn: Binding(
+                    get: { trigger.isEnabled },
+                    set: { appState.configManager.updateTrigger(id: trigger.id, isEnabled: $0) }
+                ))
+                .toggleStyle(SwitchToggleStyle())
+
+                // Delete button
+                Button(action: {
+                    deleteTrigger(trigger: trigger)
+                }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14))
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .opacity(trigger.isEnabled ? 1.0 : 0.6)
     }
@@ -592,6 +680,19 @@ struct SettingsView: View {
             for entry in appState.entries {
                 appState.databaseManager.deleteEntry(id: entry.id)
             }
+        }
+    }
+
+    private func deleteTrigger(trigger: TriggerConfig) {
+        let alert = NSAlert()
+        alert.messageText = "Delete Trigger"
+        alert.informativeText = "Are you sure you want to delete the trigger '\(trigger.trigger)'?"
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            appState.configManager.removeTrigger(id: trigger.id)
         }
     }
 

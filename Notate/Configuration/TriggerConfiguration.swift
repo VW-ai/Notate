@@ -28,9 +28,7 @@ struct AppConfiguration: Codable {
     
     static let `default` = AppConfiguration(
         triggers: [
-            TriggerConfig(trigger: "///", defaultType: .todo),
-            TriggerConfig(trigger: ",,,", defaultType: .piece),
-            TriggerConfig(trigger: "，，，", defaultType: .piece),
+            TriggerConfig(trigger: "///", defaultType: .todo), // Creates Notes
             TriggerConfig(trigger: ";;;", defaultType: .todo, isTimerTrigger: true) // Timer triggers create calendar events, not entries
         ],
         autoClearInput: true,
@@ -97,8 +95,8 @@ final class ConfigurationManager: ObservableObject {
     
     // MARK: - Trigger Management
     
-    func addTrigger(_ trigger: String, defaultType: EntryType) {
-        let newTrigger = TriggerConfig(trigger: trigger, defaultType: defaultType)
+    func addTrigger(_ trigger: String, defaultType: EntryType, isTimerTrigger: Bool = false) {
+        let newTrigger = TriggerConfig(trigger: trigger, defaultType: defaultType, isTimerTrigger: isTimerTrigger)
         configuration.triggers.append(newTrigger)
     }
     
@@ -129,33 +127,10 @@ final class ConfigurationManager: ObservableObject {
     }
     
     // MARK: - Type Detection
-    
+
     func detectEntryType(from content: String, triggerUsed: String) -> EntryType {
-        // First check for inline overrides
-        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // English overrides
-        if trimmedContent.hasPrefix("todo:") || trimmedContent.hasPrefix("t:") {
-            return .todo
-        }
-        if trimmedContent.hasPrefix("idea:") || trimmedContent.hasPrefix("i:") || trimmedContent.hasPrefix("piece:") || trimmedContent.hasPrefix("p:") {
-            return .piece
-        }
-        
-        // Chinese overrides
-        if trimmedContent.hasPrefix("待办:") || trimmedContent.hasPrefix("任务:") {
-            return .todo
-        }
-        if trimmedContent.hasPrefix("想法:") || trimmedContent.hasPrefix("思考:") || trimmedContent.hasPrefix("片段:") {
-            return .piece
-        }
-        
-        // Fall back to trigger mapping
-        if let triggerConfig = getTriggerConfig(for: triggerUsed) {
-            return triggerConfig.defaultType
-        }
-        
-        // Default fallback
+        // All entries are now Notes (internally .todo)
+        // Legacy inline overrides are no longer used but kept for backward compatibility
         return .todo
     }
     
