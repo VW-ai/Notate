@@ -22,6 +22,10 @@ struct SettingsView: View {
                 triggerConfigurationSection
                 sectionDivider
 
+                // Tag Colors Section
+                tagColorsSection
+                sectionDivider
+
                 // System Permissions Section
                 systemPermissionsSection
                 sectionDivider
@@ -177,6 +181,35 @@ struct SettingsView: View {
                     .clipShape(Capsule())
                 }
                 .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private var tagColorsSection: some View {
+        modernSectionCard(
+            title: "Tag Colors",
+            subtitle: "Manage color assignments for your tags",
+            icon: "paintpalette"
+        ) {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Color Distribution")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text("Tags use a smart color distribution algorithm for maximum visual distinction. Regenerate to reassign all tag colors using the improved algorithm.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 12) {
+                    modernActionButton(title: "Regenerate All Tag Colors", icon: "arrow.triangle.2.circlepath") {
+                        regenerateTagColors()
+                    }
+
+                    Spacer()
+                }
             }
         }
     }
@@ -693,6 +726,26 @@ struct SettingsView: View {
 
         if alert.runModal() == .alertFirstButtonReturn {
             appState.configManager.removeTrigger(id: trigger.id)
+        }
+    }
+
+    private func regenerateTagColors() {
+        let alert = NSAlert()
+        alert.messageText = "Regenerate Tag Colors"
+        alert.informativeText = "This will reassign colors to all your tags using the improved distribution algorithm for better visual distinction. Your tags will keep the same names, only colors will change."
+        alert.addButton(withTitle: "Regenerate")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .informational
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            TagColorManager.shared.reassignAllColors()
+
+            // Show success feedback
+            let successAlert = NSAlert()
+            successAlert.messageText = "Tag Colors Regenerated"
+            successAlert.informativeText = "All tag colors have been reassigned for maximum visual distinction."
+            successAlert.alertStyle = .informational
+            successAlert.runModal()
         }
     }
 

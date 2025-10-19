@@ -11,8 +11,8 @@ class TagColorManager: ObservableObject {
     @Published private(set) var tagColors: [String: Color] = [:]
     @Published private(set) var knownTags: Set<String> = [] // Track all known tags, even those with 0 count
 
-    // Track next color index to assign (cycles through 0-71)
-    private var nextColorIndex: Int = 0
+    // Track how many colors have been assigned (used for better distribution)
+    private var assignedColorCount: Int = 0
 
     // 72 distinct, visually pleasing colors
     private let colorPalette: [Color] = [
@@ -61,7 +61,7 @@ class TagColorManager: ObservableObject {
 
     private let userDefaultsKey = "tagColorMapping"
     private let knownTagsKey = "knownTags"
-    private let colorIndexKey = "nextColorIndex"
+    private let colorIndexKey = "assignedColorCount"
 
     private init() {
         loadColors()
@@ -134,8 +134,26 @@ class TagColorManager: ObservableObject {
     func clearAllColors() {
         tagColors.removeAll()
         knownTags.removeAll()
+        assignedColorCount = 0
         saveColors()
         saveKnownTags()
+        saveColorIndex()
+    }
+
+    /// Reassign all tag colors using the improved distribution algorithm
+    /// Useful if you want to redistribute colors for better visual distinction
+    func reassignAllColors() {
+        let allTags = Array(knownTags).sorted() // Sort for consistent ordering
+        tagColors.removeAll()
+        assignedColorCount = 0
+
+        // Reassign colors using new distribution
+        for tag in allTags {
+            let newColor = getNextColor()
+            tagColors[tag] = newColor
+        }
+
+        saveColors()
     }
 
     /// Get all known tags (including those with 0 count)
@@ -145,14 +163,20 @@ class TagColorManager: ObservableObject {
 
     // MARK: - Private Methods
 
-    /// Get next color in sequence (cycles through 72 colors)
+    /// Get next color using prime number distribution for maximum visual distinction
+    /// Uses golden ratio (phi) to distribute colors across the palette
     private func getNextColor() -> Color {
-        let color = colorPalette[nextColorIndex]
+        // Use golden ratio distribution for maximum visual distinction
+        // This ensures tags get maximally different colors rather than sequential similar ones
+        let goldenRatioConjugate = 0.618033988749895
+        let index = Int(Double(assignedColorCount) * goldenRatioConjugate * Double(colorPalette.count)) % colorPalette.count
 
-        // Increment and wrap around to cycle through colors
-        nextColorIndex = (nextColorIndex + 1) % colorPalette.count
+        let color = colorPalette[index]
 
-        // Save the updated index
+        // Increment assignment counter
+        assignedColorCount += 1
+
+        // Save the updated count
         saveColorIndex()
 
         return color
@@ -188,11 +212,11 @@ class TagColorManager: ObservableObject {
     }
 
     private func saveColorIndex() {
-        UserDefaults.standard.set(nextColorIndex, forKey: colorIndexKey)
+        UserDefaults.standard.set(assignedColorCount, forKey: colorIndexKey)
     }
 
     private func loadColorIndex() {
-        nextColorIndex = UserDefaults.standard.integer(forKey: colorIndexKey)
+        assignedColorCount = UserDefaults.standard.integer(forKey: colorIndexKey)
     }
 }
 

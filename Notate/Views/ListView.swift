@@ -606,24 +606,44 @@ struct ListView: View {
                     .frame(width: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    // Header: timestamp and primary tag
-                    HStack {
+                    // Header: timestamp + tags (aligned at fixed position)
+                    HStack(spacing: 0) {
+                        // Time - fixed width to ensure tag alignment
                         Text(formattedDate(entry.createdAt))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                            .frame(width: 100, alignment: .leading)
 
-                        Spacer()
+                        // Tags - start at fixed position (100pt from left)
+                        if !entry.tags.isEmpty {
+                            HStack(spacing: 6) {
+                                ForEach(entry.tags.prefix(3), id: \.self) { tag in
+                                    let tagColor = tagColorManager.colorForTag(tag)
+                                    HStack(spacing: 3) {
+                                        Circle()
+                                            .fill(tagColor)
+                                            .frame(width: 6, height: 6)
+                                        Text(tag)
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(tagColor)
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule()
+                                            .fill(tagColor.opacity(0.15))
+                                    )
+                                }
 
-                        if let firstTag = entry.tags.first {
-                            let tagColor = tagColorManager.colorForTag(firstTag)
-                            HStack(spacing: 4) {
-                                Text("🏷")
-                                    .font(.system(size: 10))
-                                Text(firstTag)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(tagColor)
+                                if entry.tags.count > 3 {
+                                    Text("+\(entry.tags.count - 3)")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
+
+                        Spacer()
                     }
 
                     // Title/snippet
@@ -660,31 +680,51 @@ struct ListView: View {
                     .frame(width: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    // Header: timestamp and primary tag
-                    HStack {
-                        // Show date only for all-day events, date+time for regular events
+                    // Header: timestamp + tags (aligned at fixed position)
+                    HStack(spacing: 0) {
+                        // Time - fixed width to ensure tag alignment
                         if event.isAllDay {
                             Text(formattedDateOnly(event.startTime))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
+                                .frame(width: 100, alignment: .leading)
                         } else {
                             Text(formattedDate(event.startTime))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
+                                .frame(width: 100, alignment: .leading)
+                        }
+
+                        // Tags - start at fixed position (100pt from left)
+                        if !eventTags.isEmpty {
+                            HStack(spacing: 6) {
+                                ForEach(eventTags.prefix(3), id: \.self) { tag in
+                                    let tagColor = tagColorManager.colorForTag(tag)
+                                    HStack(spacing: 3) {
+                                        Circle()
+                                            .fill(tagColor)
+                                            .frame(width: 6, height: 6)
+                                        Text(tag)
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(tagColor)
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule()
+                                            .fill(tagColor.opacity(0.15))
+                                    )
+                                }
+
+                                if eventTags.count > 3 {
+                                    Text("+\(eventTags.count - 3)")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
 
                         Spacer()
-
-                        if let firstTag = eventTags.first {
-                            let tagColor = tagColorManager.colorForTag(firstTag)
-                            HStack(spacing: 4) {
-                                Text("📅")
-                                    .font(.system(size: 10))
-                                Text(firstTag)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(tagColor)
-                            }
-                        }
                     }
 
                     // Title
