@@ -3,29 +3,42 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedTab: AppTab = .timeline
+    @State private var showingSettings: Bool = false
 
     enum AppTab {
         case timeline
-        case insights
-        case settings
+        case list
+        case analysis
+    }
+
+    private var archivedEntries: [Entry] {
+        appState.entries.filter { $0.isTodo && $0.status == .done }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Main content area
-            Group {
-                switch selectedTab {
-                case .timeline:
-                    TimelineView()
-                        .environmentObject(appState)
-                case .insights:
-                    InsightsView()
-                case .settings:
-                    SettingsView()
-                        .environmentObject(appState)
+            ZStack(alignment: .topTrailing) {
+                Group {
+                    switch selectedTab {
+                    case .timeline:
+                        TimelineView()
+                            .environmentObject(appState)
+                    case .list:
+                        ListView()
+                            .environmentObject(appState)
+                    case .analysis:
+                        InsightsView()
+                            .environmentObject(appState)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // Floating settings icon
+                floatingSettingsButton
+                    .padding(.top, 16)
+                    .padding(.trailing, 16)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Bottom navigation bar
             bottomNavigationBar
@@ -45,6 +58,9 @@ struct ContentView: View {
                 .padding(.leading, NotateDesignSystem.Spacing.space5)
                 .padding(.bottom, 80) // Above bottom nav
         }
+        .overlay {
+            settingsModalSheet
+        }
     }
 
     // MARK: - Bottom Navigation Bar
@@ -58,18 +74,18 @@ struct ContentView: View {
                 tab: .timeline
             )
 
-            // Insights tab
+            // List tab
             bottomNavButton(
-                icon: "chart.bar.fill",
-                title: "Insights",
-                tab: .insights
+                icon: "list.bullet",
+                title: "List",
+                tab: .list
             )
 
-            // Settings tab
+            // Analysis tab
             bottomNavButton(
-                icon: "gear",
-                title: "Settings",
-                tab: .settings
+                icon: "chart.bar.fill",
+                title: "Analysis",
+                tab: .analysis
             )
         }
         .padding(.vertical, 12)
@@ -80,6 +96,27 @@ struct ContentView: View {
                 .frame(height: 0.5),
             alignment: .top
         )
+    }
+
+    private var floatingSettingsButton: some View {
+        Button(action: {
+            showSettingsModal()
+        }) {
+            Image(systemName: "gear")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+                .frame(width: 40, height: 40)
+                .background(
+                    Circle()
+                        .fill(Color(hex: "#2C2C2E").opacity(0.7))
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private func bottomNavButton(icon: String, title: String, tab: AppTab) -> some View {
@@ -101,6 +138,63 @@ struct ContentView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    private func showSettingsModal() {
+        showingSettings = true
+    }
+}
+
+// MARK: - Settings Modal Sheet Extension
+
+extension ContentView {
+    @ViewBuilder
+    var settingsModalSheet: some View {
+        if showingSettings {
+            ZStack {
+                // Dimmed backdrop
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        showingSettings = false
+                    }
+
+                // Settings sheet
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Text("Settings")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        Button(action: {
+                            showingSettings = false
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 16)
+
+                    Divider()
+                        .background(Color(hex: "#3A3A3C"))
+
+                    // Settings content (embed existing SettingsView)
+                    SettingsView()
+                        .environmentObject(appState)
+                }
+                .frame(width: 480, height: 400)
+                .background(Color(hex: "#2C2C2E"))
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
+            }
+        }
     }
 }
 

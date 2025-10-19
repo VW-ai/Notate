@@ -87,8 +87,9 @@ struct TagManagementPanel: View {
             }
         }
 
-        // Sort by count descending
+        // Sort by count descending and filter out tags with 0 count
         let sorted = allCounts
+            .filter { $0.value > 0 }  // Only show tags that actually have entries/events
             .map { (tag: $0.key, count: $0.value) }
             .sorted { $0.count > $1.count }
 
@@ -377,6 +378,11 @@ struct TagManagementPanel: View {
             SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
         }.map { $0.id }
 
+        print("🔍 Deleting tag '\(tag)':")
+        print("   - Found \(entriesWithTag.count) entries with tag")
+        print("   - Found \(eventsWithTag.count) events with tag")
+        print("   - Total calendar events available: \(calendarService.events.count)")
+
         deletedTag = tag
         deletedTagData = (entries: entriesWithTag, events: eventsWithTag)
 
@@ -390,7 +396,7 @@ struct TagManagementPanel: View {
             deletedTagData = nil
         }
 
-        print("🗑️ Deleted tag '\(tag)' (Cmd+Z to undo within 30s)")
+        print("🗑️ Deleted tag '\(tag)' from \(entriesWithTag.count) entries and \(eventsWithTag.count) events (Cmd+Z to undo within 30s)")
     }
 
     private func performTagDeletion(_ tag: String, entries: [String], events: [String]) {
@@ -404,16 +410,21 @@ struct TagManagementPanel: View {
         }
 
         // Remove from events
-        for eventId in events {
-            if let event = calendarService.events.first(where: { $0.id == eventId }) {
-                var tags = SimpleEventDetailView.extractTags(from: event.notes)
-                tags.removeAll { $0 == tag }
+        Task {
+            // Process all event updates
+            for eventId in events {
+                if let event = calendarService.events.first(where: { $0.id == eventId }) {
+                    var tags = SimpleEventDetailView.extractTags(from: event.notes)
+                    print("🔍 Event '\(event.title)' before deletion - tags: \(tags)")
+                    tags.removeAll { $0 == tag }
+                    print("🔍 Event '\(event.title)' after deletion - tags: \(tags)")
 
-                Task {
                     let toolService = ToolService()
                     let tagsString = tags.isEmpty ? "" : "[tags: \(tags.joined(separator: ", "))]"
                     let existingNotes = SimpleEventDetailView.removeTagsFromNotes(event.notes)
                     let newNotes = existingNotes.isEmpty ? tagsString : (tagsString.isEmpty ? existingNotes : "\(existingNotes)\n\(tagsString)")
+
+                    print("🔍 Updating event notes from '\(event.notes ?? "")' to '\(newNotes)'")
 
                     do {
                         try await toolService.updateCalendarEvent(
@@ -422,12 +433,22 @@ struct TagManagementPanel: View {
                             notes: newNotes,
                             startDate: nil
                         )
+                        print("✅ Successfully updated event '\(event.title)' to remove tag '\(tag)'")
                         await MainActor.run {
                             CalendarService.shared.fetchEvents(for: event.startTime)
                         }
                     } catch {
-                        print("❌ Failed to remove tag from event: \(error)")
+                        print("❌ Failed to remove tag '\(tag)' from event '\(event.title)': \(error)")
                     }
+                }
+            }
+
+            // After all event updates complete, refresh TagStore
+            await MainActor.run {
+                // Give calendar service a longer moment to process all calendar updates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    tagStore.refreshAllTags()
+                    print("✅ TagStore refreshed after tag deletion (delayed)")
                 }
             }
         }
