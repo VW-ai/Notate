@@ -18,6 +18,14 @@
   - Search and filtering for notes
   - Rich text or markdown support
 
+- [ ] **Pin Functionality for Entries and Events** (2025-10-18)
+  - Add pin/unpin action to entries and calendar events
+  - Store pinned state in entry metadata
+  - Update Pinned collection to show actually pinned items
+  - Pin icon in entry/event detail views
+  - Keyboard shortcut for pin/unpin
+  - Pinned items should stay at top of lists
+
 - [ ] **Settings Page Development**
   - Centralized settings interface
   - Trigger configuration UI

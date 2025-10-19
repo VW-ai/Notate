@@ -36,8 +36,6 @@ struct ListView: View {
 
     enum SortOption: String, CaseIterable {
         case date = "Date"
-        case title = "Title"
-        case tag = "Tag"
     }
 
     var body: some View {
@@ -96,48 +94,45 @@ struct ListView: View {
 
     private func modeButton(mode: ViewMode) -> some View {
         let isSelected = viewMode == mode
-
-        // Different styling for "Both" - more gradient/special
         let isBoth = mode == .both
+
+        // Match date selector styling
+        let backgroundColor: Color = {
+            if isSelected {
+                return Color(hex: "#FFD60A") // Same bright yellow as date selector
+            } else {
+                return Color(hex: "#3A3A3C") // Default gray
+            }
+        }()
+
         let textColor: Color = {
             if isSelected {
-                return isBoth ? Color(hex: "#E0E0E0") : Color(hex: "#FFD93D")
+                return Color(hex: "#1C1C1E") // Dark text on yellow (like date selector)
             } else {
                 return .secondary
             }
         }()
 
-        let backgroundColor: Color = {
-            if isSelected && isBoth {
-                return Color(hex: "#FFD93D").opacity(0.2)
-            } else if isSelected {
-                return Color(hex: "#FFD93D").opacity(0.15)
-            } else {
-                return Color.clear
-            }
-        }()
-
         return Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                 viewMode = mode
                 // Clear selection when changing modes
                 selectedItemID = nil
             }
         }) {
             Text(mode.rawValue)
-                .font(.system(size: isSelected ? 16 : 14, weight: isSelected ? (isBoth ? .bold : .semibold) : .medium))
+                .font(.system(size: isSelected ? 18 : 14, weight: isSelected ? .bold : .semibold))
                 .foregroundColor(textColor)
-                .padding(.horizontal, isSelected ? 20 : 16)
-                .padding(.vertical, isSelected ? 10 : 8)
+                .frame(minWidth: 80)
+                .frame(height: isSelected ? 56 : 48)  // Match date button heights
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 12)
                         .fill(backgroundColor)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected && isBoth ? Color(hex: "#FFD93D").opacity(0.3) : Color.clear, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(isSelected && isBoth ? Color(hex: "#FFD60A").opacity(0.5) : Color.clear, lineWidth: 2)
                         )
                 )
-                .scaleEffect(isSelected ? 1.05 : 1.0)
         }
         .buttonStyle(.plain)
     }
@@ -166,22 +161,22 @@ struct ListView: View {
 
                         collectionButton(
                             icon: "tray.fill",
-                            title: "All Notes",
-                            count: appState.entries.count,  // Always show total, not filtered
+                            title: "All",
+                            count: getAllCount(),  // Mode-aware count
                             collection: .allNotes
                         )
 
                         collectionButton(
                             icon: "pin.fill",
                             title: "Pinned",
-                            count: allPinnedEntries.count,  // Total pinned, not filtered
+                            count: allPinnedEntries.count,  // TODO: Implement pin functionality
                             collection: .pinned
                         )
 
                         collectionButton(
                             icon: "clock.fill",
-                            title: "Recently Edited",
-                            count: allRecentlyEditedEntries.count,  // Total recent, not filtered
+                            title: "Recent",
+                            count: getRecentCount(),  // Mode-aware count
                             collection: .recentlyEdited
                         )
                     }
@@ -375,22 +370,71 @@ struct ListView: View {
             // Note/Event list
             ScrollView {
                 LazyVStack(spacing: 1) {
-                    // Show entries if mode is Notes or Both
-                    if viewMode == .notes || viewMode == .both {
-                        ForEach(sortedAndFilteredEntries, id: \.id) { entry in
-                            notePreviewCard(entry: entry)
+                    if viewMode == .both {
+                        // Both mode: merge and sort entries and events together
+                        ForEach(mergedAndSortedItems, id: \.id) { item in
+                            if item.isEntry, let entry = item.entry {
+                                notePreviewCard(entry: entry)
+                            } else if let event = item.event {
+                                eventPreviewCard(event: event)
+                            }
                         }
-                    }
-
-                    // Show events if mode is Events or Both
-                    if viewMode == .events || viewMode == .both {
-                        ForEach(sortedAndFilteredEvents, id: \.id) { event in
-                            eventPreviewCard(event: event)
+                    } else {
+                        // Notes or Events mode: show separately
+                        if viewMode == .notes {
+                            ForEach(sortedAndFilteredEntries, id: \.id) { entry in
+                                notePreviewCard(entry: entry)
+                            }
+                        } else if viewMode == .events {
+                            ForEach(sortedAndFilteredEvents, id: \.id) { event in
+                                eventPreviewCard(event: event)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Unified Item for Both Mode
+
+    private struct UnifiedItem: Identifiable {
+        let id: String
+        let date: Date
+        let isEntry: Bool
+        let entry: Entry?
+        let event: CalendarEvent?
+
+        init(entry: Entry) {
+            self.id = entry.id
+            self.date = entry.createdAt
+            self.isEntry = true
+            self.entry = entry
+            self.event = nil
+        }
+
+        init(event: CalendarEvent) {
+            self.id = event.id
+            self.date = event.startTime
+            self.isEntry = false
+            self.entry = nil
+            self.event = event
+        }
+    }
+
+    private var mergedAndSortedItems: [UnifiedItem] {
+        var items: [UnifiedItem] = []
+
+        // Add entries
+        items.append(contentsOf: sortedAndFilteredEntries.map { UnifiedItem(entry: $0) })
+
+        // Add events
+        items.append(contentsOf: sortedAndFilteredEvents.map { UnifiedItem(event: $0) })
+
+        // Sort by date
+        items.sort { sortAscending ? $0.date < $1.date : $0.date > $1.date }
+
+        return items
     }
 
     private func notePreviewCard(entry: Entry) -> some View {
@@ -598,15 +642,8 @@ struct ListView: View {
             entries = []
         }
 
-        // Apply sorting
-        switch sortBy {
-        case .date:
-            entries.sort { sortAscending ? $0.createdAt < $1.createdAt : $0.createdAt > $1.createdAt }
-        case .title:
-            entries.sort { sortAscending ? $0.content < $1.content : $0.content > $1.content }
-        case .tag:
-            entries.sort { sortAscending ? ($0.tags.first ?? "") < ($1.tags.first ?? "") : ($0.tags.first ?? "") > ($1.tags.first ?? "") }
-        }
+        // Apply sorting (only date now)
+        entries.sort { sortAscending ? $0.createdAt < $1.createdAt : $0.createdAt > $1.createdAt }
 
         return entries
     }
@@ -645,18 +682,8 @@ struct ListView: View {
             events = []
         }
 
-        // Apply sorting
-        switch sortBy {
-        case .date:
-            events.sort { sortAscending ? $0.startTime < $1.startTime : $0.startTime > $1.startTime }
-        case .title:
-            events.sort { sortAscending ? $0.title < $1.title : $0.title > $1.title }
-        case .tag:
-            let getFirstTag = { (event: CalendarEvent) -> String in
-                SimpleEventDetailView.extractTags(from: event.notes).first ?? ""
-            }
-            events.sort { sortAscending ? getFirstTag($0) < getFirstTag($1) : getFirstTag($0) > getFirstTag($1) }
-        }
+        // Apply sorting (only date now)
+        events.sort { sortAscending ? $0.startTime < $1.startTime : $0.startTime > $1.startTime }
 
         return events
     }
@@ -684,6 +711,35 @@ struct ListView: View {
         case .both:
             // Use TagStore which combines both
             return tagStore.tagCounts[tag] ?? 0
+        }
+    }
+
+    /// Get "All" count based on current view mode
+    private func getAllCount() -> Int {
+        switch viewMode {
+        case .notes:
+            return appState.entries.count
+        case .events:
+            return calendarService.events.count
+        case .both:
+            return appState.entries.count + calendarService.events.count
+        }
+    }
+
+    /// Get "Recent" count based on current view mode
+    private func getRecentCount() -> Int {
+        let calendar = Calendar.current
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+
+        switch viewMode {
+        case .notes:
+            return appState.entries.filter { $0.createdAt >= twoDaysAgo }.count
+        case .events:
+            return calendarService.events.filter { $0.startTime >= twoDaysAgo }.count
+        case .both:
+            let recentEntries = appState.entries.filter { $0.createdAt >= twoDaysAgo }.count
+            let recentEvents = calendarService.events.filter { $0.startTime >= twoDaysAgo }.count
+            return recentEntries + recentEvents
         }
     }
 }
