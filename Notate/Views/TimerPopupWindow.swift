@@ -27,6 +27,8 @@ class TimerPopupWindow: NSPanel {
         switch mode {
         case .tagSelection:
             height = 384 // 320 * 1.2 = 384 (20% increase)
+        case .conflict:
+            height = 384 // 320 * 1.2 = 384 (20% increase)
         default:
             height = 320
         }
@@ -631,7 +633,7 @@ struct TimerConflictView: View {
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .padding(.top, 32)
 
             Divider()
 
@@ -725,7 +727,7 @@ struct TimerConflictView: View {
                 .cornerRadius(8)
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.bottom, 24)
         }
         .focusable()
     }
