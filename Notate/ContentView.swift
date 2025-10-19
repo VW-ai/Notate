@@ -160,37 +160,25 @@ extension ContentView {
                     }
 
                 // Settings sheet
-                VStack(spacing: 0) {
-                    // Header
-                    HStack {
-                        Text("Settings")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-
-                        Spacer()
-
-                        Button(action: {
-                            showingSettings = false
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 16)
-
-                    Divider()
-                        .background(Color(hex: "#3A3A3C"))
-
+                ZStack(alignment: .topTrailing) {
                     // Settings content (embed existing SettingsView)
                     SettingsView()
                         .environmentObject(appState)
+
+                    // Floating close button
+                    Button(action: {
+                        showingSettings = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 16)
+                    .padding(.trailing, 16)
                 }
-                .frame(width: 480, height: 400)
-                .background(Color(hex: "#2C2C2E"))
+                .frame(width: 700, height: 650)
+                .background(Color(hex: "#1C1C1E"))
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
             }

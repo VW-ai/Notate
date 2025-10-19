@@ -11,72 +11,45 @@ struct SettingsView: View {
     @State private var showingApiKeyField = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Custom header
-            settingsHeader
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                // AI Configuration Section
+                aiConfigurationSection
+                sectionDivider
 
-            // Content with proper spacing
-            ScrollView {
-                LazyVStack(spacing: 32) {
-                    // AI Configuration Section
-                    aiConfigurationSection
+                // Trigger Configuration Section
+                triggerConfigurationSection
+                sectionDivider
 
-                    // Trigger Configuration Section
-                    triggerConfigurationSection
+                // System Permissions Section
+                systemPermissionsSection
+                sectionDivider
 
-                    // System Permissions Section
-                    systemPermissionsSection
+                // Capture Settings Section
+                captureSettingsSection
+                sectionDivider
 
-                    // Capture Settings Section
-                    captureSettingsSection
+                // Privacy & Security Section
+                privacySecuritySection
+                sectionDivider
 
-                    // Privacy & Security Section
-                    privacySecuritySection
-
-                    // About Section
-                    aboutSection
-                }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 24)
+                // About Section
+                aboutSection
             }
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
         }
-        .frame(width: 700, height: 600)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(Color(hex: "#1C1C1E"))
         .sheet(isPresented: $showingAddTrigger) {
             addTriggerSheet
         }
     }
 
-    // MARK: - Header
-
-    private var settingsHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Settings")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-
-                Text("Configure Notate to match your workflow")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.secondary)
-                    .background(Color.clear)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .keyboardShortcut(.escape)
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 20)
-        .background(Color(NSColor.windowBackgroundColor))
+    private var sectionDivider: some View {
+        Rectangle()
+            .fill(Color(hex: "#3A3A3C").opacity(0.3))
+            .frame(height: 1)
+            .padding(.vertical, 24)
     }
 
     // MARK: - Section Views
@@ -196,10 +169,10 @@ struct SettingsView: View {
                         Text("Add New Trigger")
                             .font(.system(size: 14, weight: .medium))
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(Color(hex: "#1C1C1E"))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color.accentColor)
+                    .background(Color(hex: "#FFD60A"))
                     .clipShape(Capsule())
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -232,6 +205,8 @@ struct SettingsView: View {
                         modernActionButton(title: "Reminders Permissions", icon: "checklist") {
                             openRemindersPermissions()
                         }
+
+                        Spacer()
                     }
                 }
                 .padding(.vertical, 8)
@@ -348,6 +323,8 @@ struct SettingsView: View {
                     modernActionButton(title: "Clear All Data", icon: "trash", style: .destructive) {
                         clearAllData()
                     }
+
+                    Spacer()
                 }
             }
         }
@@ -428,7 +405,7 @@ struct SettingsView: View {
         }
         .padding(24)
         .frame(width: 400, height: 300)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color(hex: "#2C2C2E"))
     }
 
     // MARK: - Modern Components
@@ -445,15 +422,12 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.accentColor)
-                    .frame(width: 32, height: 32)
-                    .background(Color.accentColor.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .foregroundColor(Color(hex: "#FFD60A"))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
 
                     Text(subtitle)
                         .font(.system(size: 13))
@@ -466,10 +440,7 @@ struct SettingsView: View {
             // Content
             content()
         }
-        .padding(24)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+        .padding(.vertical, 16)
     }
 
     private func modernSettingRow(title: String, subtitle: String, control: AnyView) -> some View {
@@ -496,18 +467,19 @@ struct SettingsView: View {
             // Trigger display
             Text(trigger.trigger)
                 .font(.system(.body, design: .monospaced))
+                .foregroundColor(Color(hex: "#FFD60A"))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.accentColor.opacity(0.1))
+                .background(Color(hex: "#FFD60A").opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            // Type badge
-            Text(trigger.defaultType.displayName)
+            // Type badge (show "Timer" for timer triggers)
+            Text(trigger.isTimerTrigger ? "Timer" : trigger.defaultType.displayName)
                 .font(.system(size: 12, weight: .medium))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
-                .background(trigger.defaultType == .todo ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-                .foregroundColor(trigger.defaultType == .todo ? .green : .orange)
+                .background(Color(hex: "#3A3A3C"))
+                .foregroundColor(.white.opacity(0.8))
                 .clipShape(Capsule())
 
             Spacer()
@@ -530,10 +502,10 @@ struct SettingsView: View {
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
             }
-            .foregroundColor(style == .destructive ? .white : .primary)
+            .foregroundColor(style == .destructive ? .white : .white.opacity(0.9))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(style == .destructive ? Color.red : Color(NSColor.quaternarySystemFill))
+            .background(style == .destructive ? Color.red : Color(hex: "#3A3A3C"))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(PlainButtonStyle())
