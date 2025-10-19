@@ -14,6 +14,13 @@ struct ListView: View {
     @State private var selectedItemType: ItemType = .entry
     @State private var sortBy: SortOption = .date
     @State private var sortAscending: Bool = false
+    @State private var viewMode: ViewMode = .notes  // Notes, Both, or Events
+
+    enum ViewMode: String, CaseIterable {
+        case notes = "Notes"
+        case both = "Both"
+        case events = "Events"
+    }
 
     enum ItemType {
         case entry
@@ -34,31 +41,78 @@ struct ListView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Left Pane: Collections & Filters
-                collectionsPane
-                    .frame(width: geometry.size.width * 0.20)
-                    .background(Color(hex: "#2C2C2E"))
+        VStack(spacing: 0) {
+            // Mode selector at top
+            modeSelector
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(Color(hex: "#1C1C1E"))
 
-                Divider()
-                    .background(Color(hex: "#3A3A3C"))
+            Divider()
+                .background(Color(hex: "#3A3A3C"))
 
-                // Middle Pane: Note Previews
-                notePreviewsPane
-                    .frame(width: geometry.size.width * 0.30)
-                    .background(Color(hex: "#1C1C1E"))
+            // Three-pane layout
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    // Left Pane: Collections & Filters
+                    collectionsPane
+                        .frame(width: geometry.size.width * 0.20)
+                        .background(Color(hex: "#2C2C2E"))
 
-                Divider()
-                    .background(Color(hex: "#3A3A3C"))
+                    Divider()
+                        .background(Color(hex: "#3A3A3C"))
 
-                // Right Pane: Detail View
-                detailPane
-                    .frame(maxWidth: .infinity)
-                    .background(Color(hex: "#1C1C1E"))
+                    // Middle Pane: Note Previews
+                    notePreviewsPane
+                        .frame(width: geometry.size.width * 0.30)
+                        .background(Color(hex: "#1C1C1E"))
+
+                    Divider()
+                        .background(Color(hex: "#3A3A3C"))
+
+                    // Right Pane: Detail View
+                    detailPane
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: "#1C1C1E"))
+                }
             }
         }
         .background(Color(hex: "#1C1C1E"))
+    }
+
+    // MARK: - Mode Selector
+
+    private var modeSelector: some View {
+        HStack(spacing: 16) {
+            ForEach(ViewMode.allCases, id: \.self) { mode in
+                modeButton(mode: mode)
+            }
+            Spacer()
+        }
+    }
+
+    private func modeButton(mode: ViewMode) -> some View {
+        let isSelected = viewMode == mode
+
+        return Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewMode = mode
+                // Clear selection when changing modes
+                selectedItemID = nil
+            }
+        }) {
+            Text(mode.rawValue)
+                .font(.system(size: isSelected ? 16 : 14, weight: isSelected ? .semibold : .medium))
+                .foregroundColor(isSelected ? Color(hex: "#FFD93D") : .secondary)
+                .padding(.horizontal, isSelected ? 20 : 16)
+                .padding(.vertical, isSelected ? 10 : 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? Color(hex: "#FFD93D").opacity(0.15) : Color.clear)
+                )
+                .scaleEffect(isSelected ? 1.05 : 1.0)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Collections Pane
@@ -186,6 +240,7 @@ struct ListView: View {
     private func tagFilterButton(tag: String) -> some View {
         let tagColor = tagColorManager.colorForTag(tag)
         let isSelected = selectedCollection == .tag(tag)
+        let tagCount = getTagCount(for: tag, mode: viewMode)
 
         return Button(action: {
             // Toggle selection: click same tag to deselect
@@ -208,7 +263,7 @@ struct ListView: View {
 
                 Spacer()
 
-                Text("\(tagStore.tagCounts[tag] ?? 0)")
+                Text("\(tagCount)")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
             }
@@ -290,11 +345,21 @@ struct ListView: View {
             Divider()
                 .background(Color(hex: "#3A3A3C"))
 
-            // Note list
+            // Note/Event list
             ScrollView {
                 LazyVStack(spacing: 1) {
-                    ForEach(sortedAndFilteredEntries, id: \.id) { entry in
-                        notePreviewCard(entry: entry)
+                    // Show entries if mode is Notes or Both
+                    if viewMode == .notes || viewMode == .both {
+                        ForEach(sortedAndFilteredEntries, id: \.id) { entry in
+                            notePreviewCard(entry: entry)
+                        }
+                    }
+
+                    // Show events if mode is Events or Both
+                    if viewMode == .events || viewMode == .both {
+                        ForEach(sortedAndFilteredEvents, id: \.id) { event in
+                            eventPreviewCard(event: event)
+                        }
                     }
                 }
             }
@@ -345,30 +410,88 @@ struct ListView: View {
         .buttonStyle(.plain)
     }
 
+    private func eventPreviewCard(event: CalendarEvent) -> some View {
+        let isSelected = selectedItemID == event.id
+        let eventTags = SimpleEventDetailView.extractTags(from: event.notes)
+
+        return Button(action: {
+            selectedItemID = event.id
+            selectedItemType = .event
+        }) {
+            VStack(alignment: .leading, spacing: 6) {
+                // Header: timestamp and primary tag
+                HStack {
+                    Text(formattedDate(event.startTime))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    if let firstTag = eventTags.first {
+                        let tagColor = tagColorManager.colorForTag(firstTag)
+                        HStack(spacing: 4) {
+                            Text("📅")
+                                .font(.system(size: 10))
+                            Text(firstTag)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(tagColor)
+                        }
+                    }
+                }
+
+                // Title
+                Text(event.title)
+                    .font(.system(size: 13))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(isSelected ? Color(hex: "#2C2C2E") : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Detail Pane
 
     private var detailPane: some View {
         Group {
-            if let entryID = selectedItemID,
-               let entry = appState.entries.first(where: { $0.id == entryID }) {
-                ScrollView {
-                    SimpleEntryDetailView(entry: entry)
-                        .padding(20)
+            if let itemID = selectedItemID {
+                if selectedItemType == .entry,
+                   let entry = appState.entries.first(where: { $0.id == itemID }) {
+                    ScrollView {
+                        SimpleEntryDetailView(entry: entry)
+                            .padding(20)
+                    }
+                } else if selectedItemType == .event,
+                          let event = calendarService.events.first(where: { $0.id == itemID }) {
+                    ScrollView {
+                        SimpleEventDetailView(event: event)
+                            .padding(20)
+                    }
+                } else {
+                    emptyStateView
                 }
             } else {
-                // Empty state
-                VStack(spacing: 16) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary.opacity(0.5))
-
-                    Text("Select a note to view details")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyStateView
             }
         }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary.opacity(0.5))
+
+            Text("Select an item to view details")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Computed Properties
@@ -447,11 +570,79 @@ struct ListView: View {
         return entries
     }
 
+    private var sortedAndFilteredEvents: [CalendarEvent] {
+        // Start with all calendar events
+        var events = calendarService.events
+
+        // Apply search filter
+        if !searchText.isEmpty {
+            events = events.filter { event in
+                event.title.localizedCaseInsensitiveContains(searchText) ||
+                SimpleEventDetailView.extractTags(from: event.notes).contains(where: { $0.localizedCaseInsensitiveContains(searchText) })
+            }
+        }
+
+        // Apply collection filter (single selection)
+        if let collection = selectedCollection {
+            switch collection {
+            case .allNotes:
+                break // Show all (already search-filtered)
+            case .pinned:
+                // Events don't have pinned status for now
+                events = []
+            case .recentlyEdited:
+                let calendar = Calendar.current
+                let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+                events = events.filter { $0.startTime >= twoDaysAgo }
+            case .tag(let tag):
+                events = events.filter { event in
+                    SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
+                }
+            }
+        } else {
+            // Nothing selected = show nothing
+            events = []
+        }
+
+        // Apply sorting
+        switch sortBy {
+        case .date:
+            events.sort { sortAscending ? $0.startTime < $1.startTime : $0.startTime > $1.startTime }
+        case .title:
+            events.sort { sortAscending ? $0.title < $1.title : $0.title > $1.title }
+        case .tag:
+            let getFirstTag = { (event: CalendarEvent) -> String in
+                SimpleEventDetailView.extractTags(from: event.notes).first ?? ""
+            }
+            events.sort { sortAscending ? getFirstTag($0) < getFirstTag($1) : getFirstTag($0) > getFirstTag($1) }
+        }
+
+        return events
+    }
+
     // MARK: - Helper Functions
 
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM dd · h:mm a"
         return formatter.string(from: date)
+    }
+
+    /// Get tag count based on current view mode
+    private func getTagCount(for tag: String, mode: ViewMode) -> Int {
+        switch mode {
+        case .notes:
+            // Count only entries with this tag
+            return appState.entries.filter { $0.tags.contains(tag) }.count
+        case .events:
+            // Count only events with this tag
+            let allEvents = calendarService.events
+            return allEvents.filter { event in
+                SimpleEventDetailView.extractTags(from: event.notes).contains(tag)
+            }.count
+        case .both:
+            // Use TagStore which combines both
+            return tagStore.tagCounts[tag] ?? 0
+        }
     }
 }
