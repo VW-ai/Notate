@@ -83,9 +83,12 @@ struct ListView: View {
     // MARK: - Mode Selector
 
     private var modeSelector: some View {
-        HStack(spacing: 16) {
-            ForEach(ViewMode.allCases, id: \.self) { mode in
-                modeButton(mode: mode)
+        HStack(spacing: 0) {
+            Spacer()
+            HStack(spacing: 16) {
+                ForEach(ViewMode.allCases, id: \.self) { mode in
+                    modeButton(mode: mode)
+                }
             }
             Spacer()
         }
@@ -93,6 +96,26 @@ struct ListView: View {
 
     private func modeButton(mode: ViewMode) -> some View {
         let isSelected = viewMode == mode
+
+        // Different styling for "Both" - more gradient/special
+        let isBoth = mode == .both
+        let textColor: Color = {
+            if isSelected {
+                return isBoth ? Color(hex: "#E0E0E0") : Color(hex: "#FFD93D")
+            } else {
+                return .secondary
+            }
+        }()
+
+        let backgroundColor: Color = {
+            if isSelected && isBoth {
+                return Color(hex: "#FFD93D").opacity(0.2)
+            } else if isSelected {
+                return Color(hex: "#FFD93D").opacity(0.15)
+            } else {
+                return Color.clear
+            }
+        }()
 
         return Button(action: {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -102,13 +125,17 @@ struct ListView: View {
             }
         }) {
             Text(mode.rawValue)
-                .font(.system(size: isSelected ? 16 : 14, weight: isSelected ? .semibold : .medium))
-                .foregroundColor(isSelected ? Color(hex: "#FFD93D") : .secondary)
+                .font(.system(size: isSelected ? 16 : 14, weight: isSelected ? (isBoth ? .bold : .semibold) : .medium))
+                .foregroundColor(textColor)
                 .padding(.horizontal, isSelected ? 20 : 16)
                 .padding(.vertical, isSelected ? 10 : 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? Color(hex: "#FFD93D").opacity(0.15) : Color.clear)
+                        .fill(backgroundColor)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isSelected && isBoth ? Color(hex: "#FFD93D").opacity(0.3) : Color.clear, lineWidth: 1)
+                        )
                 )
                 .scaleEffect(isSelected ? 1.05 : 1.0)
         }
@@ -373,37 +400,44 @@ struct ListView: View {
             selectedItemID = entry.id
             selectedItemType = .entry
         }) {
-            VStack(alignment: .leading, spacing: 6) {
-                // Header: timestamp and primary tag
-                HStack {
-                    Text(formattedDate(entry.createdAt))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+            HStack(spacing: 0) {
+                // Bright blue vertical line for notes
+                Rectangle()
+                    .fill(Color(hex: "#66D9FF"))  // Bright, light blue (almost white-blue)
+                    .frame(width: 4)
 
-                    Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    // Header: timestamp and primary tag
+                    HStack {
+                        Text(formattedDate(entry.createdAt))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
 
-                    if let firstTag = entry.tags.first {
-                        let tagColor = tagColorManager.colorForTag(firstTag)
-                        HStack(spacing: 4) {
-                            Text("🏷")
-                                .font(.system(size: 10))
-                            Text(firstTag)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(tagColor)
+                        Spacer()
+
+                        if let firstTag = entry.tags.first {
+                            let tagColor = tagColorManager.colorForTag(firstTag)
+                            HStack(spacing: 4) {
+                                Text("🏷")
+                                    .font(.system(size: 10))
+                                Text(firstTag)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(tagColor)
+                            }
                         }
                     }
-                }
 
-                // Title/snippet
-                Text(entry.content.prefix(60))
-                    .font(.system(size: 13))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Title/snippet
+                    Text(entry.content.prefix(60))
+                        .font(.system(size: 13))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
             .background(isSelected ? Color(hex: "#2C2C2E") : Color.clear)
             .contentShape(Rectangle())
         }
@@ -418,37 +452,44 @@ struct ListView: View {
             selectedItemID = event.id
             selectedItemType = .event
         }) {
-            VStack(alignment: .leading, spacing: 6) {
-                // Header: timestamp and primary tag
-                HStack {
-                    Text(formattedDate(event.startTime))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+            HStack(spacing: 0) {
+                // Bright green vertical line for events
+                Rectangle()
+                    .fill(Color(hex: "#66FF99"))  // Bright, light green
+                    .frame(width: 4)
 
-                    Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    // Header: timestamp and primary tag
+                    HStack {
+                        Text(formattedDate(event.startTime))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
 
-                    if let firstTag = eventTags.first {
-                        let tagColor = tagColorManager.colorForTag(firstTag)
-                        HStack(spacing: 4) {
-                            Text("📅")
-                                .font(.system(size: 10))
-                            Text(firstTag)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(tagColor)
+                        Spacer()
+
+                        if let firstTag = eventTags.first {
+                            let tagColor = tagColorManager.colorForTag(firstTag)
+                            HStack(spacing: 4) {
+                                Text("📅")
+                                    .font(.system(size: 10))
+                                Text(firstTag)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(tagColor)
+                            }
                         }
                     }
-                }
 
-                // Title
-                Text(event.title)
-                    .font(.system(size: 13))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Title
+                    Text(event.title)
+                        .font(.system(size: 13))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
             .background(isSelected ? Color(hex: "#2C2C2E") : Color.clear)
             .contentShape(Rectangle())
         }
