@@ -63,17 +63,11 @@ struct ListView: View {
                 .padding(.vertical, 16)
                 .background(Color(hex: "#1C1C1E"))
 
-            Divider()
-                .background(Color(hex: "#3A3A3C"))
-
             // Time range selector
             timeRangeSelector
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .background(Color(hex: "#1C1C1E"))
-
-            Divider()
-                .background(Color(hex: "#3A3A3C"))
 
             // Three-pane layout
             GeometryReader { geometry in
