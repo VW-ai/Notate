@@ -9,8 +9,7 @@ struct ListView: View {
 
     // UI State
     @State private var searchText: String = ""
-    @State private var selectedCollection: CollectionType = .allNotes
-    @State private var selectedTagFilters: Set<String> = []
+    @State private var selectedCollection: CollectionType? = .allNotes  // nil means nothing selected
     @State private var selectedItemID: String? = nil  // Can be entry or event ID
     @State private var selectedItemType: ItemType = .entry
     @State private var sortBy: SortOption = .date
@@ -67,7 +66,7 @@ struct ListView: View {
     private var collectionsPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            Text("Inputs")
+            Text("List")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(.primary)
                 .padding(.horizontal, 16)
@@ -87,21 +86,21 @@ struct ListView: View {
                         collectionButton(
                             icon: "tray.fill",
                             title: "All Notes",
-                            count: filteredEntries.count,
+                            count: appState.entries.count,  // Always show total, not filtered
                             collection: .allNotes
                         )
 
                         collectionButton(
                             icon: "pin.fill",
                             title: "Pinned",
-                            count: pinnedEntries.count,
+                            count: allPinnedEntries.count,  // Total pinned, not filtered
                             collection: .pinned
                         )
 
                         collectionButton(
                             icon: "clock.fill",
                             title: "Recently Edited",
-                            count: recentlyEditedEntries.count,
+                            count: allRecentlyEditedEntries.count,  // Total recent, not filtered
                             collection: .recentlyEdited
                         )
                     }
@@ -151,8 +150,14 @@ struct ListView: View {
 
     private func collectionButton(icon: String, title: String, count: Int, collection: CollectionType) -> some View {
         Button(action: {
-            selectedCollection = collection
-            selectedTagFilters.removeAll()
+            // Toggle selection: click same item to deselect
+            if selectedCollection == collection {
+                selectedCollection = nil
+                selectedItemID = nil  // Clear preview
+            } else {
+                selectedCollection = collection
+                selectedItemID = nil  // Clear preview when switching
+            }
         }) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
@@ -180,15 +185,17 @@ struct ListView: View {
 
     private func tagFilterButton(tag: String) -> some View {
         let tagColor = tagColorManager.colorForTag(tag)
-        let isSelected = selectedTagFilters.contains(tag)
+        let isSelected = selectedCollection == .tag(tag)
 
         return Button(action: {
+            // Toggle selection: click same tag to deselect
             if isSelected {
-                selectedTagFilters.remove(tag)
+                selectedCollection = nil
+                selectedItemID = nil  // Clear preview
             } else {
-                selectedTagFilters.insert(tag)
+                selectedCollection = .tag(tag)
+                selectedItemID = nil  // Clear preview when switching
             }
-            selectedCollection = .tag(tag)
         }) {
             HStack(spacing: 8) {
                 Circle()
@@ -366,7 +373,25 @@ struct ListView: View {
 
     // MARK: - Computed Properties
 
-    private var filteredEntries: [Entry] {
+    // Unfiltered counts for collection badges
+    private var allPinnedEntries: [Entry] {
+        appState.entries.filter { entry in
+            if let metadata = entry.metadata,
+               let pinned = metadata["pinned"]?.wrappedValue as? Bool {
+                return pinned
+            }
+            return false
+        }
+    }
+
+    private var allRecentlyEditedEntries: [Entry] {
+        let calendar = Calendar.current
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+        return appState.entries.filter { $0.createdAt >= twoDaysAgo }
+    }
+
+    // Filtered by search only (not by selected collection)
+    private var searchFilteredEntries: [Entry] {
         var entries = appState.entries
 
         // Apply search filter
@@ -377,45 +402,36 @@ struct ListView: View {
             }
         }
 
-        // Apply tag filters
-        if !selectedTagFilters.isEmpty {
-            entries = entries.filter { entry in
-                !Set(entry.tags).isDisjoint(with: selectedTagFilters)
-            }
-        }
-
         return entries
     }
 
-    private var pinnedEntries: [Entry] {
-        filteredEntries.filter { entry in
-            if let metadata = entry.metadata,
-               let pinned = metadata["pinned"]?.wrappedValue as? Bool {
-                return pinned
-            }
-            return false
-        }
-    }
-
-    private var recentlyEditedEntries: [Entry] {
-        let calendar = Calendar.current
-        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
-        return filteredEntries.filter { $0.createdAt >= twoDaysAgo }
-    }
-
     private var sortedAndFilteredEntries: [Entry] {
-        var entries = filteredEntries
+        // Start with search-filtered entries
+        var entries = searchFilteredEntries
 
-        // Apply collection filter
-        switch selectedCollection {
-        case .allNotes:
-            break // Already filtered
-        case .pinned:
-            entries = pinnedEntries
-        case .recentlyEdited:
-            entries = recentlyEditedEntries
-        case .tag(let tag):
-            entries = entries.filter { $0.tags.contains(tag) }
+        // Apply collection filter (single selection)
+        if let collection = selectedCollection {
+            switch collection {
+            case .allNotes:
+                break // Show all (already search-filtered)
+            case .pinned:
+                entries = entries.filter { entry in
+                    if let metadata = entry.metadata,
+                       let pinned = metadata["pinned"]?.wrappedValue as? Bool {
+                        return pinned
+                    }
+                    return false
+                }
+            case .recentlyEdited:
+                let calendar = Calendar.current
+                let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+                entries = entries.filter { $0.createdAt >= twoDaysAgo }
+            case .tag(let tag):
+                entries = entries.filter { $0.tags.contains(tag) }
+            }
+        } else {
+            // Nothing selected = show nothing
+            entries = []
         }
 
         // Apply sorting
