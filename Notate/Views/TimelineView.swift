@@ -30,14 +30,22 @@ struct TimelineView: View {
 
     // Calculate tag panel width based on available screen space
     private func calculateTagPanelWidth(screenWidth: CGFloat) -> CGFloat? {
-        // For tag cloud, take up to 40% of screen width when there's space
-        // But don't constrain on small screens - let it be full width
-        if screenWidth >= 1200 {
-            return min(screenWidth * 0.4, 600) // Max 600px on large screens
-        } else if screenWidth >= 800 {
-            return min(screenWidth * 0.5, 400) // Up to 50% on medium screens
+        // Tag panel should fit within the left quarter (25%) of the screen
+        // Scale based on screen size to avoid overflow on smaller screens
+        let leftQuarterWidth = screenWidth * 0.25
+
+        if screenWidth >= 1600 {
+            // Large screens: use most of the left quarter (max 90%)
+            return min(leftQuarterWidth * 0.9, 360)
+        } else if screenWidth >= 1200 {
+            // Medium-large screens: use up to 85% of left quarter
+            return min(leftQuarterWidth * 0.85, 280)
+        } else if screenWidth >= 900 {
+            // Medium screens: use up to 80% of left quarter
+            return min(leftQuarterWidth * 0.8, 200)
         } else {
-            return nil // Full width on small screens
+            // Small screens: use most of the available space
+            return min(leftQuarterWidth * 0.75, 180)
         }
     }
 

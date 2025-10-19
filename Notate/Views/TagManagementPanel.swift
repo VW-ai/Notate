@@ -26,6 +26,22 @@ struct TagManagementPanel: View {
 
     var availableWidth: CGFloat? = nil // Optional width constraint from parent
 
+    // Calculate scale factor based on available width
+    private var scaleFactor: CGFloat {
+        guard let width = availableWidth else { return 1.0 }
+
+        // Scale tags down on smaller screens
+        if width >= 300 {
+            return 1.0 // Full size for large panels
+        } else if width >= 220 {
+            return 0.85 // Slightly smaller for medium panels
+        } else if width >= 160 {
+            return 0.7 // Smaller for small panels
+        } else {
+            return 0.6 // Smallest for very constrained panels
+        }
+    }
+
     // Sizing tiers for tag cloud (percentile-based)
     enum TagSizeTier {
         case extraLarge // Top 10%
@@ -44,14 +60,16 @@ struct TagManagementPanel: View {
             }
         }
 
-        var fontSize: CGFloat {
+        func fontSize(scale: CGFloat) -> CGFloat {
+            let baseSize: CGFloat
             switch self {
-            case .extraLarge: return 28
-            case .large: return 24
-            case .medium: return 20
-            case .small: return 18
-            case .extraSmall: return 16
+            case .extraLarge: baseSize = 28
+            case .large: baseSize = 24
+            case .medium: baseSize = 20
+            case .small: baseSize = 18
+            case .extraSmall: baseSize = 16
             }
+            return baseSize * scale
         }
 
         var fontWeight: Font.Weight {
@@ -64,14 +82,16 @@ struct TagManagementPanel: View {
             }
         }
 
-        var padding: (horizontal: CGFloat, vertical: CGFloat) {
+        func padding(scale: CGFloat) -> (horizontal: CGFloat, vertical: CGFloat) {
+            let basePadding: (horizontal: CGFloat, vertical: CGFloat)
             switch self {
-            case .extraLarge: return (20, 12)
-            case .large: return (18, 10)
-            case .medium: return (16, 9)
-            case .small: return (14, 8)
-            case .extraSmall: return (12, 7)
+            case .extraLarge: basePadding = (20, 12)
+            case .large: basePadding = (18, 10)
+            case .medium: basePadding = (16, 9)
+            case .small: basePadding = (14, 8)
+            case .extraSmall: basePadding = (12, 7)
             }
+            return (basePadding.horizontal * scale, basePadding.vertical * scale)
         }
     }
 
@@ -150,11 +170,22 @@ struct TagManagementPanel: View {
     }
 
     private var headerTitle: some View {
-        HStack {
+        HStack(spacing: 12) {
             if selectedTags.isEmpty {
                 Text("Tags")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
+
+                Button(action: {
+                    withAnimation {
+                        isAddingTag = true
+                    }
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color(hex: "#FFB84D"))
+                }
+                .buttonStyle(PlainButtonStyle())
             } else {
                 Text("\(selectedTags.count) selected")
                     .font(.system(size: 18, weight: .semibold))
@@ -183,17 +214,6 @@ struct TagManagementPanel: View {
                     Image(systemName: "trash.fill")
                         .font(.system(size: 18))
                         .foregroundColor(.red)
-                }
-                .buttonStyle(PlainButtonStyle())
-            } else {
-                Button(action: {
-                    withAnimation {
-                        isAddingTag = true
-                    }
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(Color(hex: "#FFB84D"))
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -249,8 +269,24 @@ struct TagManagementPanel: View {
                     tagList
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, horizontalPadding)
             .padding(.vertical, 24)
+        }
+    }
+
+    // Calculate horizontal padding based on available width
+    private var horizontalPadding: CGFloat {
+        guard let width = availableWidth else { return 20 }
+
+        // Add more padding on smaller screens to prevent tags from touching edges
+        if width >= 280 {
+            return 20
+        } else if width >= 200 {
+            return 16
+        } else if width >= 160 {
+            return 12
+        } else {
+            return 8
         }
     }
 
@@ -273,12 +309,13 @@ struct TagManagementPanel: View {
     }
 
     private var tagList: some View {
-        FlowLayout(spacing: 12) {
+        FlowLayout(spacing: 12 * scaleFactor) {
             ForEach(cachedTagCounts, id: \.tag) { item in
                 TagCloudChip(
                     tag: item.tag,
                     count: item.count,
                     tier: TagSizeTier(percentile: item.percentile),
+                    scaleFactor: scaleFactor,
                     color: tagColorManager.getColorForTag(item.tag) ?? .gray,
                     isSelected: selectedTags.contains(item.tag),
                     onDrop: { entryId, eventId in
@@ -573,6 +610,7 @@ struct TagCloudChip: View {
     let tag: String
     let count: Int
     let tier: TagManagementPanel.TagSizeTier
+    let scaleFactor: CGFloat
     let color: Color
     let isSelected: Bool
     let onDrop: (String?, String?) -> Void
@@ -618,14 +656,17 @@ struct TagCloudChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        let fontSize = tier.fontSize(scale: scaleFactor)
+        let padding = tier.padding(scale: scaleFactor)
+
+        HStack(spacing: 6 * scaleFactor) {
             // Tag name with count in parentheses
             Text("#\(tag)")
-                .font(.system(size: tier.fontSize, weight: tier.fontWeight))
+                .font(.system(size: fontSize, weight: tier.fontWeight))
                 .foregroundColor(.white)
 
             Text("(\(count))")
-                .font(.system(size: tier.fontSize - 2, weight: isHovering ? .semibold : .regular))
+                .font(.system(size: fontSize - 2, weight: isHovering ? .semibold : .regular))
                 .foregroundColor(.white.opacity(0.8))
 
             // Delete button on hover (always reserve space to prevent layout jump)
@@ -633,14 +674,14 @@ struct TagCloudChip: View {
                 onDelete()
             }) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: tier.fontSize - 2))
+                    .font(.system(size: fontSize - 2))
                     .foregroundColor(.white.opacity(0.6))
             }
             .buttonStyle(PlainButtonStyle())
             .opacity(isHovering ? 1.0 : 0.0) // Hidden but still takes up space
         }
-        .padding(.horizontal, tier.padding.horizontal)
-        .padding(.vertical, tier.padding.vertical)
+        .padding(.horizontal, padding.horizontal)
+        .padding(.vertical, padding.vertical)
         .background(chipBackground)
         .overlay(chipStroke)
         .shadow(
