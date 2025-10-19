@@ -113,13 +113,31 @@
    - Fixed card heights prevent spacing issues
    - LazyVStack with spacing: 0
 
-### Commits Made (To Be Committed)
+#### 7. Detail View Integration Fix
+- **Problem Solved**: Detail views weren't rendering in List page
+- **Root Causes**:
+  - Missing `.environmentObject(appState)` on detail views
+  - Missing GeometryReader for proper sizing context
+  - Missing `.id()` modifier for view recreation
+- **Solution**:
+  - Wrapped detail views in GeometryReader
+  - Added `.frame(width:)` and `.frame(minHeight:)` for proper sizing
+  - Added `.environmentObject(appState)` for state access
+  - Added `.id(entry.id)` / `.id(event.id)` for proper view updates
+  - Used `event.uniqueID` for selection but `event.id` for view identity
 
-1. **List page complete implementation with selectors and color system**
+### Commits Made (2 Total)
+
+1. **520174e** - `feat: implement List page with selectors, color system, and recurring event fixes`
    - Created ItemColorManager.swift
    - Modified ListView.swift (comprehensive updates)
    - Modified CalendarService.swift (uniqueID property)
    - Modified TagManagementPanel.swift (removed dividers)
+
+2. **fix: detail view rendering with GeometryReader and proper environment setup** (To Be Committed)
+   - Fixed detail view not showing for entries and events
+   - Added GeometryReader for proper sizing
+   - Added environmentObject and id modifiers
 
 ### Files Modified/Created
 
@@ -147,6 +165,10 @@
 - [x] Notes mode shows entries only
 - [x] Current year/month highlighted in light yellow
 - [x] Detail view opens for both entries and events
+- [x] Entry detail view displays correctly with full content
+- [x] Event detail view displays correctly with full content
+- [x] Detail views can be scrolled
+- [x] Switching between items updates detail view
 
 ### Known Issues / Future Enhancements
 

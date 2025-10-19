@@ -709,19 +709,29 @@ struct ListView: View {
     // MARK: - Detail Pane
 
     private var detailPane: some View {
-        Group {
+        ZStack {
             if let itemID = selectedItemID {
                 if selectedItemType == .entry,
                    let entry = appState.entries.first(where: { $0.id == itemID }) {
-                    ScrollView {
-                        SimpleEntryDetailView(entry: entry)
-                            .padding(20)
+                    GeometryReader { geometry in
+                        ScrollView {
+                            SimpleEntryDetailView(entry: entry)
+                                .environmentObject(appState)
+                                .id(entry.id)
+                                .frame(width: geometry.size.width)
+                                .frame(minHeight: geometry.size.height, alignment: .topLeading)
+                        }
                     }
                 } else if selectedItemType == .event,
                           let event = allCalendarEvents.first(where: { $0.uniqueID == itemID }) {
-                    ScrollView {
-                        SimpleEventDetailView(event: event)
-                            .padding(20)
+                    GeometryReader { geometry in
+                        ScrollView {
+                            SimpleEventDetailView(event: event)
+                                .environmentObject(appState)
+                                .id(event.id)
+                                .frame(width: geometry.size.width)
+                                .frame(minHeight: geometry.size.height, alignment: .topLeading)
+                        }
                     }
                 } else {
                     emptyStateView
