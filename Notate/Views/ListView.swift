@@ -15,6 +15,8 @@ struct ListView: View {
     @State private var sortBy: SortOption = .date
     @State private var sortAscending: Bool = false
     @State private var viewMode: ViewMode = .notes  // Notes, Both, or Events
+    @State private var selectedTimeRange: TimeRange = .allTime
+    @State private var allCalendarEvents: [CalendarEvent] = []  // Cached all events
 
     enum ViewMode: String, CaseIterable {
         case notes = "Notes"
@@ -38,12 +40,36 @@ struct ListView: View {
         case date = "Date"
     }
 
+    enum TimeRange: Equatable {
+        case allTime
+        case month(Int)  // 1-12 for Jan-Dec
+
+        var displayName: String {
+            switch self {
+            case .allTime:
+                return "ALL TIME"
+            case .month(let month):
+                let formatter = DateFormatter()
+                return formatter.monthSymbols[month - 1].uppercased()
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Mode selector at top
             modeSelector
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+                .background(Color(hex: "#1C1C1E"))
+
+            Divider()
+                .background(Color(hex: "#3A3A3C"))
+
+            // Time range selector
+            timeRangeSelector
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
                 .background(Color(hex: "#1C1C1E"))
 
             Divider()
@@ -76,6 +102,9 @@ struct ListView: View {
             }
         }
         .background(Color(hex: "#1C1C1E"))
+        .onAppear {
+            fetchAllCalendarEvents()
+        }
     }
 
     // MARK: - Mode Selector
@@ -132,6 +161,71 @@ struct ListView: View {
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(isSelected && isBoth ? Color(hex: "#FFD60A").opacity(0.5) : Color.clear, lineWidth: 2)
                         )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Time Range Selector
+
+    private var timeRangeSelector: some View {
+        VStack(spacing: 10) {
+            // Top row: 5 months with ALL TIME in center
+            HStack(spacing: 12) {
+                Spacer()
+                timeRangeButton(for: .month(1))  // January
+                timeRangeButton(for: .month(2))  // February
+                timeRangeButton(for: .allTime, isAllTime: true)  // ALL TIME (bigger)
+                timeRangeButton(for: .month(3))  // March
+                timeRangeButton(for: .month(4))  // April
+                Spacer()
+            }
+
+            // Bottom row: 7 months
+            HStack(spacing: 12) {
+                Spacer()
+                ForEach(5...11, id: \.self) { month in
+                    timeRangeButton(for: .month(month))
+                }
+                timeRangeButton(for: .month(12))  // December
+                Spacer()
+            }
+        }
+    }
+
+    private func timeRangeButton(for range: TimeRange, isAllTime: Bool = false) -> some View {
+        let isSelected = selectedTimeRange == range
+        let size: CGFloat = isAllTime ? 56 : 44  // ALL TIME is bigger
+
+        let backgroundColor: Color = {
+            if isSelected {
+                return Color(hex: "#FFD60A")
+            } else {
+                return Color(hex: "#3A3A3C")
+            }
+        }()
+
+        let textColor: Color = {
+            if isSelected {
+                return Color(hex: "#1C1C1E")
+            } else {
+                return .secondary
+            }
+        }()
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                selectedTimeRange = range
+                selectedItemID = nil  // Clear selection when changing time range
+            }
+        }) {
+            Text(range.displayName.prefix(3))  // Show first 3 letters (JAN, FEB, ALL)
+                .font(.system(size: isAllTime ? 10 : 9, weight: isSelected ? .bold : .semibold))
+                .foregroundColor(textColor)
+                .frame(width: size, height: size)
+                .background(
+                    Circle()
+                        .fill(backgroundColor)
                 )
         }
         .buttonStyle(.plain)
@@ -552,7 +646,7 @@ struct ListView: View {
                             .padding(20)
                     }
                 } else if selectedItemType == .event,
-                          let event = calendarService.events.first(where: { $0.id == itemID }) {
+                          let event = allCalendarEvents.first(where: { $0.id == itemID }) {
                     ScrollView {
                         SimpleEventDetailView(event: event)
                             .padding(20)
@@ -617,6 +711,9 @@ struct ListView: View {
         // Start with search-filtered entries
         var entries = searchFilteredEntries
 
+        // Apply time range filter
+        entries = filterByTimeRange(entries: entries)
+
         // Apply collection filter (single selection)
         if let collection = selectedCollection {
             switch collection {
@@ -649,8 +746,11 @@ struct ListView: View {
     }
 
     private var sortedAndFilteredEvents: [CalendarEvent] {
-        // Start with all calendar events
-        var events = calendarService.events
+        // Start with all calendar events (from cache)
+        var events = allCalendarEvents
+
+        // Apply time range filter
+        events = filterByTimeRange(events: events)
 
         // Apply search filter
         if !searchText.isEmpty {
@@ -740,6 +840,54 @@ struct ListView: View {
             let recentEntries = appState.entries.filter { $0.createdAt >= twoDaysAgo }.count
             let recentEvents = calendarService.events.filter { $0.startTime >= twoDaysAgo }.count
             return recentEntries + recentEvents
+        }
+    }
+
+    /// Fetch all calendar events from 2-year range
+    private func fetchAllCalendarEvents() {
+        Task {
+            let calendar = Calendar.current
+            let now = Date()
+            let startDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
+            let endDate = calendar.date(byAdding: .year, value: 1, to: now) ?? now
+
+            let events = await calendarService.fetchAllEvents(from: startDate, to: endDate)
+            await MainActor.run {
+                allCalendarEvents = events
+                print("📅 Loaded \(events.count) calendar events for List page")
+            }
+        }
+    }
+
+    /// Filter entries by selected time range
+    private func filterByTimeRange(entries: [Entry]) -> [Entry] {
+        switch selectedTimeRange {
+        case .allTime:
+            return entries
+        case .month(let month):
+            let calendar = Calendar.current
+            let currentYear = calendar.component(.year, from: Date())
+            return entries.filter { entry in
+                let entryMonth = calendar.component(.month, from: entry.createdAt)
+                let entryYear = calendar.component(.year, from: entry.createdAt)
+                return entryMonth == month && entryYear == currentYear
+            }
+        }
+    }
+
+    /// Filter events by selected time range
+    private func filterByTimeRange(events: [CalendarEvent]) -> [CalendarEvent] {
+        switch selectedTimeRange {
+        case .allTime:
+            return events
+        case .month(let month):
+            let calendar = Calendar.current
+            let currentYear = calendar.component(.year, from: Date())
+            return events.filter { event in
+                let eventMonth = calendar.component(.month, from: event.startTime)
+                let eventYear = calendar.component(.year, from: event.startTime)
+                return eventMonth == month && eventYear == currentYear
+            }
         }
     }
 }
