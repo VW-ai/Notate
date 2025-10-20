@@ -2,11 +2,15 @@ import AppKit
 import Carbon.HIToolbox
 import Combine
 
+// Key codes for special keys
+private let kVK_V: CGKeyCode = 9  // V key
+
 extension Notification.Name {
     static let notateDidDetectTrigger = Notification.Name("Notate.didDetectTrigger")
     static let notateDidFinishCapture  = Notification.Name("Notate.didFinishCapture")
     static let todoArchivedNotification = Notification.Name("Notate.todoArchived")
     static let notateDidDetectTimerTrigger = Notification.Name("Notate.didDetectTimerTrigger")
+    static let notateDidPasteContent = Notification.Name("Notate.didPasteContent")
 }
 
 struct CaptureResult {
@@ -18,6 +22,11 @@ struct CaptureResult {
 struct TimerCaptureResult {
     let eventName: String
     let triggerUsed: String
+}
+
+struct PasteResult {
+    let pastedContent: String
+    let pastedLength: Int
 }
 
 final class CaptureEngine: ObservableObject {
@@ -70,7 +79,7 @@ final class CaptureEngine: ObservableObject {
                     print("⌨️ 捕获到按键: '\(char)' (键码: \(keyCode))")
                 }
 
-                engine.handleKeystroke(ch)
+                engine.handleKeystroke(ch, keyCode: CGKeyCode(keyCode), flags: flags)
             }
             
             return Unmanaged.passUnretained(cgEvent)
@@ -132,8 +141,14 @@ final class CaptureEngine: ObservableObject {
         }
     }
 
-    private func handleKeystroke(_ ch: String?) {
+    private func handleKeystroke(_ ch: String?, keyCode: CGKeyCode, flags: CGEventFlags) {
         lastKeystrokeAt = Date()
+
+        // Detect Cmd+V paste command during capture
+        if state == .capturing && keyCode == kVK_V && flags.contains(.maskCommand) {
+            handlePaste()
+            return
+        }
 
         switch state {
         case .idle:
@@ -280,6 +295,43 @@ final class CaptureEngine: ObservableObject {
         currentTriggerConfig = nil
         state = State.idle
         isIMEComposing = false
+    }
+
+    private func handlePaste() {
+        guard state == .capturing else { return }
+
+        // Read clipboard content
+        let clipboardManager = ClipboardManager.shared
+        guard let clipboardText = clipboardManager.readText() else {
+            print("📋 Paste attempted but clipboard is empty")
+            return
+        }
+
+        // Clean the clipboard text (trim whitespace, handle newlines)
+        let cleanedText = clipboardText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !cleanedText.isEmpty else {
+            print("📋 Paste attempted but clipboard contains only whitespace")
+            return
+        }
+
+        // Append clipboard content to capture text
+        captureText.append(cleanedText)
+
+        print("📋 Pasted from clipboard into capture:")
+        print("  - Length: \(cleanedText.count) characters")
+        print("  - Content: '\(cleanedText.prefix(100))\(cleanedText.count > 100 ? "..." : "")'")
+        print("  - Total capture text: '\(captureText)'")
+
+        // Post notification for UI feedback
+        let pasteResult = PasteResult(
+            pastedContent: String(cleanedText.prefix(100)),
+            pastedLength: cleanedText.count
+        )
+        NotificationCenter.default.post(name: .notateDidPasteContent, object: pasteResult)
+
+        // Reset the idle timer since we just added content
+        startIdleTimer()
     }
 
     private func triggerAIProcessing(for entry: Entry) {

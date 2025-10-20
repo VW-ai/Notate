@@ -318,7 +318,19 @@ final class DatabaseManager: ObservableObject {
             let result = sqlite3_step(statement)
             if result == SQLITE_DONE {
                 print("✅ Entry saved: \(entry.id)")
-                // Don't reload entries here - updateEntry() already updated the in-memory array
+
+                // Update in-memory entries array to refresh UI
+                DispatchQueue.main.async {
+                    // Check if entry already exists (update case)
+                    if let existingIndex = self.entries.firstIndex(where: { $0.id == entry.id }) {
+                        self.entries[existingIndex] = entry
+                        print("🔄 Updated existing entry in UI: \(entry.id)")
+                    } else {
+                        // New entry - insert at beginning (entries are sorted by created_at DESC)
+                        self.entries.insert(entry, at: 0)
+                        print("🔄 Added new entry to UI: \(entry.id)")
+                    }
+                }
             } else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
                 print("❌ Error saving entry: \(errorMsg) (code: \(result))")
@@ -527,7 +539,12 @@ final class DatabaseManager: ObservableObject {
 
             if sqlite3_step(statement) == SQLITE_DONE {
                 print("✅ Entry deleted: \(id)")
-                loadEntriesInternal()
+
+                // Update in-memory array to refresh UI immediately
+                DispatchQueue.main.async {
+                    self.entries.removeAll { $0.id == id }
+                    print("🔄 Removed entry from UI: \(id)")
+                }
             } else {
                 print("❌ Error deleting entry")
             }
@@ -932,9 +949,13 @@ final class DatabaseManager: ObservableObject {
             // Update in database
             self.saveEntryInternal(updatedEntry)
 
-            // Update in-memory array to trigger @Published notification
-            self.entries[index] = updatedEntry
-            print("✅ Updated entry AI metadata in memory for: \(entryId)")
+            // Update in-memory array to trigger @Published notification (on main thread)
+            DispatchQueue.main.async {
+                if let currentIndex = self.entries.firstIndex(where: { $0.id == entryId }) {
+                    self.entries[currentIndex] = updatedEntry
+                    print("✅ Updated entry AI metadata in UI for: \(entryId)")
+                }
+            }
         }
     }
 
@@ -951,9 +972,13 @@ final class DatabaseManager: ObservableObject {
             // Update in database
             self.saveEntryInternal(updatedEntry)
 
-            // Update in-memory array to trigger @Published notification
-            self.entries[index] = updatedEntry
-            print("✅ Added AI action to entry in memory: \(entryId)")
+            // Update in-memory array to trigger @Published notification (on main thread)
+            DispatchQueue.main.async {
+                if let currentIndex = self.entries.firstIndex(where: { $0.id == entryId }) {
+                    self.entries[currentIndex] = updatedEntry
+                    print("✅ Added AI action to entry in UI: \(entryId)")
+                }
+            }
         }
     }
 
@@ -970,9 +995,13 @@ final class DatabaseManager: ObservableObject {
             // Update in database
             self.saveEntryInternal(updatedEntry)
 
-            // Update in-memory array to trigger @Published notification
-            self.entries[index] = updatedEntry
-            print("✅ Updated AI action status in memory: \(entryId), action: \(actionId), status: \(status)")
+            // Update in-memory array to trigger @Published notification (on main thread)
+            DispatchQueue.main.async {
+                if let currentIndex = self.entries.firstIndex(where: { $0.id == entryId }) {
+                    self.entries[currentIndex] = updatedEntry
+                    print("✅ Updated AI action status in UI: \(entryId), action: \(actionId), status: \(status)")
+                }
+            }
         }
     }
 
@@ -989,9 +1018,13 @@ final class DatabaseManager: ObservableObject {
             // Update in database
             self.saveEntryInternal(updatedEntry)
 
-            // Update in-memory array to trigger @Published notification
-            self.entries[index] = updatedEntry
-            print("✅ Updated AI action data in memory: \(entryId), action: \(actionId)")
+            // Update in-memory array to trigger @Published notification (on main thread)
+            DispatchQueue.main.async {
+                if let currentIndex = self.entries.firstIndex(where: { $0.id == entryId }) {
+                    self.entries[currentIndex] = updatedEntry
+                    print("✅ Updated AI action data in UI: \(entryId), action: \(actionId)")
+                }
+            }
         }
     }
 
@@ -1008,9 +1041,13 @@ final class DatabaseManager: ObservableObject {
             // Update in database
             self.saveEntryInternal(updatedEntry)
 
-            // Update in-memory array to trigger @Published notification
-            self.entries[index] = updatedEntry
-            print("✅ Updated AI research in memory for: \(entryId)")
+            // Update in-memory array to trigger @Published notification (on main thread)
+            DispatchQueue.main.async {
+                if let currentIndex = self.entries.firstIndex(where: { $0.id == entryId }) {
+                    self.entries[currentIndex] = updatedEntry
+                    print("✅ Updated AI research in UI for: \(entryId)")
+                }
+            }
         }
     }
 
