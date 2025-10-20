@@ -4,6 +4,7 @@ import AppKit
 @main
 struct NotateApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var notificationService = NotificationService.shared
     @State private var hasAccessibilityPermission = false
     @State private var permissionCheckTimer: Timer?
 
@@ -12,9 +13,11 @@ struct NotateApp: App {
             if hasAccessibilityPermission {
                 ContentView()
                     .environmentObject(appState)
+                    .environmentObject(notificationService)
                     .onAppear {
                         appState.engine.start()
                         startPermissionMonitoring()
+                        requestNotificationPermissions()
                     }
                     .onDisappear {
                         stopPermissionMonitoring()
@@ -130,6 +133,17 @@ struct NotateApp: App {
     private func stopPermissionMonitoring() {
         permissionCheckTimer?.invalidate()
         permissionCheckTimer = nil
+    }
+
+    private func requestNotificationPermissions() {
+        Task {
+            let granted = await appState.systemNotificationManager.requestPermission()
+            if granted {
+                print("✅ System notification permissions granted")
+            } else {
+                print("⚠️ System notification permissions denied")
+            }
+        }
     }
 }
 

@@ -98,48 +98,8 @@ struct EntryDetailView: View {
 
     private func entryHeader(_ entry: Entry) -> some View {
         VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.medium) {
-            // Type and status
-            HStack {
-                EntryTypeBadge(type: entry.type, size: .medium)
-
-                if entry.isTodo {
-                    Spacer()
-
-                    Button(action: { toggleCompletion(entry) }) {
-                        HStack(spacing: ModernDesignSystem.Spacing.small) {
-                            Image(systemName: entry.status == .done ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 18, weight: .medium))
-
-                            Text(entry.status == .done ? "Completed" : "Open")
-                                .font(ModernDesignSystem.Typography.body)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundColor(entry.status == .done ? ModernDesignSystem.Colors.success : ModernDesignSystem.Colors.secondary)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-            }
-
-            // Action buttons
+            // Action buttons - minimal
             HStack(spacing: ModernDesignSystem.Spacing.small) {
-                ModernButton(
-                    title: "Edit",
-                    icon: "pencil",
-                    style: .secondary,
-                    size: .medium
-                ) {
-                    startEditing(entry)
-                }
-
-                ModernButton(
-                    title: "Convert",
-                    icon: "arrow.triangle.2.circlepath",
-                    style: .secondary,
-                    size: .medium
-                ) {
-                    convertEntry(entry)
-                }
-
                 Spacer()
 
                 ModernButton(
@@ -230,63 +190,17 @@ struct EntryDetailView: View {
             cornerRadius: ModernDesignSystem.CornerRadius.medium,
             shadowIntensity: ModernDesignSystem.Shadow.light
         ) {
-            VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.medium) {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(ModernDesignSystem.Colors.accent)
+            VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.small) {
+                // Just show created date without label
+                Text(entry.formattedDate)
+                    .font(ModernDesignSystem.Typography.small)
+                    .foregroundColor(ModernDesignSystem.Colors.secondary)
 
-                    Text("Details")
-                        .font(ModernDesignSystem.Typography.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(ModernDesignSystem.Colors.primary)
-                }
-
-                VStack(spacing: ModernDesignSystem.Spacing.small) {
-                    metadataRow(icon: "calendar", label: "Created", value: entry.formattedDate)
-                    metadataRow(icon: "keyboard", label: "Trigger", value: entry.triggerUsed)
-
-                    if let sourceApp = entry.sourceApp {
-                        metadataRow(icon: "app", label: "Source", value: sourceApp)
-                    }
-
-                    if entry.isTodo, let priority = entry.priority {
-                        HStack {
-                            Image(systemName: "flag")
-                                .font(.system(size: 14))
-                                .foregroundColor(ModernDesignSystem.Colors.secondary)
-                                .frame(width: 20)
-
-                            Text("Priority")
-                                .font(ModernDesignSystem.Typography.small)
-                                .foregroundColor(ModernDesignSystem.Colors.secondary)
-                                .frame(width: 80, alignment: .leading)
-
-                            PriorityIndicator(priority: priority, style: .badge)
-
-                            Spacer()
-                        }
-                    }
-
-                    if !entry.tags.isEmpty {
-                        HStack(alignment: .top) {
-                            Image(systemName: "tag")
-                                .font(.system(size: 14))
-                                .foregroundColor(ModernDesignSystem.Colors.secondary)
-                                .frame(width: 20)
-
-                            Text("Tags")
-                                .font(ModernDesignSystem.Typography.small)
-                                .foregroundColor(ModernDesignSystem.Colors.secondary)
-                                .frame(width: 80, alignment: .leading)
-
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: ModernDesignSystem.Spacing.tiny) {
-                                ForEach(entry.tags, id: \.self) { tag in
-                                    ModernTagBadge(tag: tag)
-                                }
-                            }
-
-                            Spacer()
+                // Tags without label - just flowing layout
+                if !entry.tags.isEmpty {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: ModernDesignSystem.Spacing.tiny) {
+                        ForEach(entry.tags, id: \.self) { tag in
+                            ModernTagBadge(tag: tag)
                         }
                     }
                 }
@@ -324,38 +238,33 @@ struct EntryDetailView: View {
         ) {
             VStack(alignment: .leading, spacing: ModernDesignSystem.Spacing.medium) {
                 HStack {
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(ModernDesignSystem.Colors.accent)
-
-                    Text("AI Insights")
-                        .font(ModernDesignSystem.Typography.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(ModernDesignSystem.Colors.primary)
-
                     Spacer()
 
-                    Button("Regenerate") {
+                    Button(action: {
                         appState.regenerateAIResearch(for: entry)
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 12))
+                            Text("Regenerate")
+                                .font(ModernDesignSystem.Typography.small)
+                        }
+                        .foregroundColor(ModernDesignSystem.Colors.accent)
                     }
-                    .font(ModernDesignSystem.Typography.small)
-                    .foregroundColor(ModernDesignSystem.Colors.accent)
+                    .buttonStyle(PlainButtonStyle())
                     .disabled(isProcessingAI)
                 }
 
                 if let aiMetadata = entry.aiMetadata {
-                    // Actions
+                    // Actions without label
                     if !aiMetadata.actions.isEmpty {
                         aiActionsSection(aiMetadata.actions, for: entry)
                     }
 
-                    // Research
+                    // Research without label
                     if let research = aiMetadata.researchResults {
                         aiResearchSection(research)
                     }
-
-                    // Processing Stats
-                    aiStatsSection(aiMetadata)
                 }
             }
         }
@@ -534,7 +443,7 @@ struct EntryDetailView: View {
             }
 
             // Revert button (only when executed and reversible)
-            if action.status == .executed && action.reversible && action.type != .webSearch {
+            if action.status == .executed && action.reversible {
                 Button(action: {
                     revertAction(action, for: entry)
                 }) {
@@ -683,6 +592,12 @@ struct EntryDetailView: View {
     }
 
     private func executeActionDirectly(_ action: AIAction, for entry: Entry) {
+        // Skip if already executed or reversed
+        if action.status == .executed || action.status == .reversed {
+            print("⏭️ Skipping \(action.type.displayName) action - already \(action.status.rawValue)")
+            return
+        }
+
         Task {
             // Update the action status to executing
             await MainActor.run {
@@ -802,54 +717,6 @@ struct EntryDetailView: View {
 
             // Don't open maps automatically - only when user clicks jump
             return true
-
-        case .webSearch:
-            // Extract search query
-            let query = action.data["query"]?.stringValue ?? entry.content
-
-            // Perform AI-powered web search analysis
-            let searchResult = try await performAIWebSearch(query: query, for: entry)
-            return searchResult
-        }
-    }
-
-    private func performAIWebSearch(query: String, for entry: Entry) async throws -> Bool {
-        // Use centralized prompt from PromptManager
-        let searchPrompt = PromptManager.webSearchPrompt(query: query)
-
-        do {
-            let aiResponse = try await appState.aiService.quickExtraction(searchPrompt)
-
-            // Create comprehensive research results
-            let researchResults = ResearchResults(
-                content: aiResponse,
-                suggestions: [],
-                generatedAt: Date(),
-                researchCost: 0.02, // Estimate for web search + AI analysis
-                processingTimeMs: 0
-            )
-
-            // Update the entry with enhanced research
-            var updatedMetadata = entry.aiMetadata ?? AIMetadata()
-            updatedMetadata.researchResults = researchResults
-
-            // Save updated metadata to database
-            await MainActor.run {
-                appState.databaseManager.updateEntryAIMetadata(entry.id, metadata: updatedMetadata)
-            }
-
-            // Also open the search in browser for user reference
-            if let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-               let url = URL(string: "https://www.google.com/search?q=\(encodedQuery)") {
-                await MainActor.run {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-
-            return true
-        } catch {
-            print("❌ Web search AI analysis failed: \(error)")
-            return false
         }
     }
 
@@ -995,10 +862,6 @@ struct EntryDetailView: View {
                 case .maps:
                     // Maps doesn't create anything, so nothing to revert
                     break
-
-                case .webSearch:
-                    // Web search doesn't create anything, so nothing to revert
-                    break
                 }
 
                 // Update action status to reversed
@@ -1129,8 +992,6 @@ extension AIActionType {
             return "person.crop.circle"
         case .maps:
             return "map"
-        case .webSearch:
-            return "magnifyingglass"
         }
     }
 }
@@ -1221,8 +1082,6 @@ extension EntryDetailView {
             3. Toggle it ON
             4. Return to Notate and try again
             """
-        case .webSearch:
-            return // Web search doesn't need permissions
         }
 
         alert.informativeText = instructions

@@ -10,16 +10,16 @@ struct ThoughtCardView: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: ModernDesignSystem.Spacing.regular) {
+            LazyVStack(spacing: NotateDesignSystem.Spacing.space3) {
                 ForEach(thoughts) { thought in
-                    ModernThoughtCard(thought: thought)
+                    NotateEntryCard(entry: thought)
                         .environmentObject(appState)
                 }
             }
-            .padding(.horizontal, ModernDesignSystem.Spacing.regular)
-            .padding(.vertical, ModernDesignSystem.Spacing.small)
+            .padding(.horizontal, NotateDesignSystem.Spacing.space4)
+            .padding(.vertical, NotateDesignSystem.Spacing.space3)
         }
-        .background(ModernDesignSystem.Colors.surfaceBackground)
+        .background(Color.notateGhost)
     }
 }
 

@@ -139,7 +139,6 @@ struct PermissionRequestView: View {
             case .appleReminders: return "list.bullet"
             case .contacts: return "person.crop.circle"
             case .maps: return "map"
-            case .webSearch: return "magnifyingglass"
             }
         }
         return "keyboard"
@@ -159,7 +158,6 @@ struct PermissionRequestView: View {
             case .appleReminders: return "Reminders Access Required"
             case .contacts: return "Contacts Access Required"
             case .maps: return "Location Access Required"
-            case .webSearch: return "Network Access Required"
             }
         }
         return "需要辅助功能权限"
@@ -176,8 +174,6 @@ struct PermissionRequestView: View {
                 return "Notate needs access to Contacts to save contact information from your entries."
             case .maps:
                 return "Notate needs location access to provide location-based suggestions and navigation."
-            case .webSearch:
-                return "Notate needs network access to search the web for research and information."
             }
         }
         return "Notate 需要辅助功能权限来监听键盘输入，以便捕获您的 TODO 和想法。"
@@ -209,12 +205,6 @@ struct PermissionRequestView: View {
                     "Click the button below to open System Settings",
                     "Go to Privacy & Security > Location Services",
                     "Enable Notate in the list of applications"
-                ]
-            case .webSearch:
-                return [
-                    "Network access is managed automatically",
-                    "Check your internet connection",
-                    "Try the action again"
                 ]
             }
         }
@@ -260,9 +250,6 @@ struct PermissionRequestView: View {
                 urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts"
             case .maps:
                 urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
-            case .webSearch:
-                // For network access, just return - no specific settings to open
-                return
             }
 
             if let url = URL(string: urlString) {
@@ -300,8 +287,8 @@ struct PermissionRequestView: View {
                 hasPermissionNow = await requestRemindersPermission()
             case .contacts:
                 hasPermissionNow = await requestContactsPermission()
-            case .maps, .webSearch:
-                // These don't require explicit permission requests
+            case .maps:
+                // Maps don't require explicit permission requests
                 hasPermissionNow = true
             }
 

@@ -191,30 +191,67 @@ final class DatabaseManager: ObservableObject {
             created_at TEXT NOT NULL,
             status TEXT NOT NULL,
             priority TEXT,
+            is_pinned INTEGER DEFAULT 0, -- Boolean stored as INTEGER
             metadata TEXT, -- JSON object
             encrypted_content TEXT -- For future encryption
         );
         """
-        
+
         let createIndexes = [
             "CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(type);",
             "CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at);",
             "CREATE INDEX IF NOT EXISTS idx_entries_status ON entries(status);",
-            "CREATE INDEX IF NOT EXISTS idx_entries_priority ON entries(priority);"
+            "CREATE INDEX IF NOT EXISTS idx_entries_priority ON entries(priority);",
+            "CREATE INDEX IF NOT EXISTS idx_entries_is_pinned ON entries(is_pinned);"
         ]
-        
+
         if sqlite3_exec(db, createEntriesTable, nil, nil, nil) != SQLITE_OK {
             print("❌ Error creating entries table")
             return
         }
-        
+
+        // Run migrations to add new columns to existing tables
+        migrateDatabaseSchema()
+
         for indexSQL in createIndexes {
             if sqlite3_exec(db, indexSQL, nil, nil, nil) != SQLITE_OK {
                 print("❌ Error creating index")
             }
         }
-        
+
         print("✅ Database tables created")
+    }
+
+    private func migrateDatabaseSchema() {
+        // Check if is_pinned column exists, if not add it
+        let checkColumnSQL = "PRAGMA table_info(entries);"
+        var statement: OpaquePointer?
+        var hasPinnedColumn = false
+
+        if sqlite3_prepare_v2(db, checkColumnSQL, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let namePtr = sqlite3_column_text(statement, 1) {
+                    let columnName = String(cString: namePtr)
+                    if columnName == "is_pinned" {
+                        hasPinnedColumn = true
+                        break
+                    }
+                }
+            }
+        }
+        sqlite3_finalize(statement)
+
+        // Add is_pinned column if it doesn't exist
+        if !hasPinnedColumn {
+            print("🔄 Running migration: Adding is_pinned column...")
+            let addColumnSQL = "ALTER TABLE entries ADD COLUMN is_pinned INTEGER DEFAULT 0;"
+            if sqlite3_exec(db, addColumnSQL, nil, nil, nil) == SQLITE_OK {
+                print("✅ Migration successful: is_pinned column added")
+            } else {
+                let errorMsg = String(cString: sqlite3_errmsg(db))
+                print("❌ Migration failed: \(errorMsg)")
+            }
+        }
     }
     
     // MARK: - CRUD Operations
@@ -237,9 +274,9 @@ final class DatabaseManager: ObservableObject {
         }
 
         let insertSQL = """
-        INSERT OR REPLACE INTO entries 
-        (id, type, content, tags, source_app, trigger_used, created_at, status, priority, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO entries
+        (id, type, content, tags, source_app, trigger_used, created_at, status, priority, is_pinned, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         var statement: OpaquePointer?
@@ -265,6 +302,9 @@ final class DatabaseManager: ObservableObject {
 
             bindText(statement, index: 8, value: entry.status.rawValue)
             bindText(statement, index: 9, value: entry.priority?.rawValue)
+            let pinnedValue = entry.isPinned ? 1 : 0
+            sqlite3_bind_int(statement, 10, Int32(pinnedValue))
+            print("💾 Saving entry \(entry.id) with isPinned=\(entry.isPinned) (db value: \(pinnedValue))")
 
             let metadataString: String?
             if let metadata = entry.metadata {
@@ -273,12 +313,12 @@ final class DatabaseManager: ObservableObject {
             } else {
                 metadataString = nil
             }
-            bindText(statement, index: 10, value: metadataString)
+            bindText(statement, index: 11, value: metadataString)
 
             let result = sqlite3_step(statement)
             if result == SQLITE_DONE {
                 print("✅ Entry saved: \(entry.id)")
-                loadEntriesInternal()
+                // Don't reload entries here - updateEntry() already updated the in-memory array
             } else {
                 let errorMsg = String(cString: sqlite3_errmsg(db))
                 print("❌ Error saving entry: \(errorMsg) (code: \(result))")
@@ -448,6 +488,22 @@ final class DatabaseManager: ObservableObject {
     }
     
     func updateEntry(_ entry: Entry) {
+        // Update the in-memory array immediately (synchronously if on main thread, async otherwise)
+        if Thread.isMainThread {
+            if let index = self.entries.firstIndex(where: { $0.id == entry.id }) {
+                self.entries[index] = entry
+                print("✅ Updated entry in memory (sync): \(entry.id), isPinned: \(entry.isPinned)")
+            }
+        } else {
+            DispatchQueue.main.async {
+                if let index = self.entries.firstIndex(where: { $0.id == entry.id }) {
+                    self.entries[index] = entry
+                    print("✅ Updated entry in memory (async): \(entry.id), isPinned: \(entry.isPinned)")
+                }
+            }
+        }
+
+        // Save to database on background queue
         saveEntry(entry) // INSERT OR REPLACE handles updates
     }
     
@@ -609,12 +665,14 @@ final class DatabaseManager: ObservableObject {
         }
         
         let priorityString = safeGetText(8)
-        
-        print("📋 Parsed strings - Trigger: \(triggerUsed), CreatedAt: \(createdAtString), Status: \(statusString), Priority: \(priorityString ?? "nil")")
-        
+        let pinnedInt = sqlite3_column_int(statement, 9)
+        let isPinned = pinnedInt != 0
+
+        print("📋 Parsed entry - ID: \(id), IsPinned DB value: \(pinnedInt), isPinned: \(isPinned)")
+
         // Parse metadata
         var metadata: [String: FlexibleCodable]?
-        if let metadataData = safeGetText(9), !metadataData.isEmpty {
+        if let metadataData = safeGetText(10), !metadataData.isEmpty {
             if let metadataJSON = Data(base64Encoded: metadataData),
                let decodedMetadata = try? JSONDecoder().decode([String: FlexibleCodable].self, from: metadataJSON) {
                 metadata = decodedMetadata
@@ -654,6 +712,7 @@ final class DatabaseManager: ObservableObject {
             createdAt: createdAt,
             status: status,
             priority: priority,
+            isPinned: isPinned,
             metadata: metadata
         )
     }

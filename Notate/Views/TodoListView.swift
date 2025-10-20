@@ -6,16 +6,16 @@ struct TodoListView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: ModernDesignSystem.Spacing.medium) {
+            LazyVStack(spacing: NotateDesignSystem.Spacing.space3) {
                 ForEach(todos) { todo in
-                    ModernTodoCard(todo: todo)
+                    NotateEntryCard(entry: todo)
                         .environmentObject(appState)
                 }
             }
-            .padding(.horizontal, ModernDesignSystem.Spacing.regular)
-            .padding(.vertical, ModernDesignSystem.Spacing.small)
+            .padding(.horizontal, NotateDesignSystem.Spacing.space4)
+            .padding(.vertical, NotateDesignSystem.Spacing.space3)
         }
-        .background(ModernDesignSystem.Colors.surfaceBackground)
+        .background(Color.notateGhost)
     }
 }
 

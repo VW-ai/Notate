@@ -7,12 +7,14 @@ struct TriggerConfig: Codable, Identifiable {
     var trigger: String
     var defaultType: EntryType
     var isEnabled: Bool
-    
-    init(id: String = UUID().uuidString, trigger: String, defaultType: EntryType, isEnabled: Bool = true) {
+    var isTimerTrigger: Bool // Special flag for timer triggers (creates calendar event via timer, not entry)
+
+    init(id: String = UUID().uuidString, trigger: String, defaultType: EntryType, isEnabled: Bool = true, isTimerTrigger: Bool = false) {
         self.id = id
         self.trigger = trigger
         self.defaultType = defaultType
         self.isEnabled = isEnabled
+        self.isTimerTrigger = isTimerTrigger
     }
 }
 
@@ -26,10 +28,8 @@ struct AppConfiguration: Codable {
     
     static let `default` = AppConfiguration(
         triggers: [
-            TriggerConfig(trigger: "///", defaultType: .todo),
-            TriggerConfig(trigger: ",,,", defaultType: .piece),
-            TriggerConfig(trigger: "，，，", defaultType: .piece),
-            TriggerConfig(trigger: ";;", defaultType: .todo)
+            TriggerConfig(trigger: "///", defaultType: .todo), // Creates Notes
+            TriggerConfig(trigger: ";;;", defaultType: .todo, isTimerTrigger: true) // Timer triggers create calendar events, not entries
         ],
         autoClearInput: true,
         captureTimeout: 3.0,
@@ -60,9 +60,24 @@ final class ConfigurationManager: ObservableObject {
     private static func loadConfiguration() -> AppConfiguration {
         guard let data = UserDefaults.standard.data(forKey: "NotateConfiguration"),
               !data.isEmpty,
-              let config = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
+              var config = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
             return AppConfiguration.default
         }
+
+        // Migration: Ensure timer trigger exists
+        let hasTimerTrigger = config.triggers.contains { $0.trigger == ";;;" && $0.isTimerTrigger }
+        if !hasTimerTrigger {
+            print("🔄 Adding missing timer trigger ;;; to configuration")
+            config.triggers.append(
+                TriggerConfig(trigger: ";;;", defaultType: .todo, isTimerTrigger: true)
+            )
+            // Save the migrated configuration
+            if let data = try? JSONEncoder().encode(config) {
+                UserDefaults.standard.set(data, forKey: "NotateConfiguration")
+                UserDefaults.standard.synchronize()
+            }
+        }
+
         return config
     }
     
@@ -80,8 +95,8 @@ final class ConfigurationManager: ObservableObject {
     
     // MARK: - Trigger Management
     
-    func addTrigger(_ trigger: String, defaultType: EntryType) {
-        let newTrigger = TriggerConfig(trigger: trigger, defaultType: defaultType)
+    func addTrigger(_ trigger: String, defaultType: EntryType, isTimerTrigger: Bool = false) {
+        let newTrigger = TriggerConfig(trigger: trigger, defaultType: defaultType, isTimerTrigger: isTimerTrigger)
         configuration.triggers.append(newTrigger)
     }
     
@@ -112,33 +127,10 @@ final class ConfigurationManager: ObservableObject {
     }
     
     // MARK: - Type Detection
-    
+
     func detectEntryType(from content: String, triggerUsed: String) -> EntryType {
-        // First check for inline overrides
-        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // English overrides
-        if trimmedContent.hasPrefix("todo:") || trimmedContent.hasPrefix("t:") {
-            return .todo
-        }
-        if trimmedContent.hasPrefix("idea:") || trimmedContent.hasPrefix("i:") || trimmedContent.hasPrefix("piece:") || trimmedContent.hasPrefix("p:") {
-            return .piece
-        }
-        
-        // Chinese overrides
-        if trimmedContent.hasPrefix("待办:") || trimmedContent.hasPrefix("任务:") {
-            return .todo
-        }
-        if trimmedContent.hasPrefix("想法:") || trimmedContent.hasPrefix("思考:") || trimmedContent.hasPrefix("片段:") {
-            return .piece
-        }
-        
-        // Fall back to trigger mapping
-        if let triggerConfig = getTriggerConfig(for: triggerUsed) {
-            return triggerConfig.defaultType
-        }
-        
-        // Default fallback
+        // All entries are now Notes (internally .todo)
+        // Legacy inline overrides are no longer used but kept for backward compatibility
         return .todo
     }
     

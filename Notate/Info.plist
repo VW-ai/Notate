@@ -16,5 +16,11 @@
 	<string>Notate needs access to Contacts to save contact information from your entries.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Notate uses your location to provide context-aware suggestions and nearby recommendations.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Notate needs permission to control Calendar, Reminders, Contacts, and Maps to navigate to your created items when you click "Jump".</string>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
+	<key>OSAScriptingDefinition</key>
+	<string>Notate.sdef</string>
 </dict>
 </plist>

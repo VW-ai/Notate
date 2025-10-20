@@ -4,15 +4,12 @@ import SQLite3
 // MARK: - Entry Types
 enum EntryType: String, CaseIterable, Codable {
     case todo = "todo"
-    case thought = "thought" // Legacy, will be migrated to piece
-    case piece = "piece"
+    case thought = "thought" // Legacy, will be migrated to todo
+    case piece = "piece" // Legacy, will be migrated to todo
 
     var displayName: String {
-        switch self {
-        case .todo: return "TODO"
-        case .thought: return "Piece" // Display as Piece
-        case .piece: return "Piece"
-        }
+        // All entries are now called "Notes"
+        return "Note"
     }
 }
 
@@ -53,6 +50,7 @@ struct Entry: Identifiable, Codable {
     let createdAt: Date
     var status: EntryStatus
     var priority: EntryPriority?
+    var isPinned: Bool
     var metadata: [String: FlexibleCodable]?
     
     init(
@@ -65,6 +63,7 @@ struct Entry: Identifiable, Codable {
         createdAt: Date = Date(),
         status: EntryStatus = EntryStatus.open,
         priority: EntryPriority? = nil,
+        isPinned: Bool = false,
         metadata: [String: FlexibleCodable]? = nil
     ) {
         self.id = id
@@ -76,6 +75,7 @@ struct Entry: Identifiable, Codable {
         self.createdAt = createdAt
         self.status = status
         self.priority = priority
+        self.isPinned = isPinned
         self.metadata = metadata
     }
 }
@@ -193,11 +193,23 @@ extension Entry {
             status = EntryStatus.done
         }
     }
-    
+
     mutating func markAsOpen() {
         if isTodo {
             status = EntryStatus.open
         }
+    }
+
+    mutating func togglePin() {
+        isPinned.toggle()
+    }
+
+    mutating func pin() {
+        isPinned = true
+    }
+
+    mutating func unpin() {
+        isPinned = false
     }
     
     mutating func convertToTodo() -> Entry {

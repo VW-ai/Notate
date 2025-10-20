@@ -120,19 +120,6 @@ struct PromptManager {
         """
     }
 
-    static func webSearchPrompt(query: String) -> String {
-        return """
-        You are Claude 4.5 with full research latitude. Investigate: "\(query)"
-
-        Deliver a focused markdown brief (≤220 words) that:
-        - Leads with a "Snapshot" section (3 punchy bullets capturing the most valuable findings)
-        - Highlights the most credible insights, emerging angles, or contrarian signals
-        - Mentions notable sources inline (site or organization names suffice)
-        - Suggests practical follow-up moves tailored to someone acting on this query
-
-        Shape the remaining sections around what the topic truly needs—no rigid template. Use tables or short lists only when they sharpen clarity.
-        """
-    }
 
     // MARK: - Enhanced Research Prompts
 

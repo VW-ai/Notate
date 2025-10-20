@@ -48,7 +48,6 @@ enum AIActionType: String, CaseIterable, Codable {
     case calendar = "calendar"
     case contacts = "contacts"
     case maps = "maps"
-    case webSearch = "web_search"
 
     var displayName: String {
         switch self {
@@ -56,7 +55,6 @@ enum AIActionType: String, CaseIterable, Codable {
         case .calendar: return "Calendar"
         case .contacts: return "Contacts"
         case .maps: return "Maps"
-        case .webSearch: return "Web Search"
         }
     }
 }

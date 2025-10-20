@@ -6,12 +6,18 @@ extension Notification.Name {
     static let notateDidDetectTrigger = Notification.Name("Notate.didDetectTrigger")
     static let notateDidFinishCapture  = Notification.Name("Notate.didFinishCapture")
     static let todoArchivedNotification = Notification.Name("Notate.todoArchived")
+    static let notateDidDetectTimerTrigger = Notification.Name("Notate.didDetectTimerTrigger")
 }
 
 struct CaptureResult {
     let content: String
     let triggerUsed: String
     let type: EntryType
+}
+
+struct TimerCaptureResult {
+    let eventName: String
+    let triggerUsed: String
 }
 
 final class CaptureEngine: ObservableObject {
@@ -151,17 +157,17 @@ final class CaptureEngine: ObservableObject {
             // Check against all enabled triggers
             let currentBuffer = String(triggerBuf)
             print("🔍 检查触发器: '\(currentBuffer)'")
-            
+
             for triggerConfig in configManager.getEnabledTriggers() {
                 if currentBuffer.hasSuffix(triggerConfig.trigger) {
                     // Found a matching trigger
-                    print("✅ 检测到触发器: '\(triggerConfig.trigger)' -> \(triggerConfig.defaultType.displayName)")
+                    print("✅ 检测到触发器: '\(triggerConfig.trigger)' -> \(triggerConfig.isTimerTrigger ? "Timer" : triggerConfig.defaultType.displayName)")
                     currentTrigger = triggerConfig.trigger
                     currentTriggerConfig = triggerConfig
                     state = State.capturing
                     captureText = ""
                     isIMEComposing = false
-                    
+
                     NotificationCenter.default.post(name: .notateDidDetectTrigger, object: triggerConfig.trigger)
                     startIdleTimer()
                     break
@@ -212,20 +218,30 @@ final class CaptureEngine: ObservableObject {
         idleTimer = nil
 
         let rawText = captureText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Check if this is a timer trigger (allow empty for timer triggers)
+        if let triggerConfig = currentTriggerConfig, triggerConfig.isTimerTrigger {
+            print("🍅 Timer trigger detected!")
+            print("  - Event name: '\(rawText.isEmpty ? "(empty)" : rawText)'")
+            handleTimerCapture(eventName: rawText)
+            return
+        }
+
+        // For regular entries, require non-empty content
         guard !rawText.isEmpty else {
             print("⚠️ 捕获文本为空，重置状态")
             resetCapture()
             return
         }
-        
+
         print("🎯 完成捕获:")
         print("  - 原始文本: '\(rawText)'")
         print("  - 触发器: '\(currentTrigger)'")
-        
+
         // Clean content and detect type
         let cleanedContent = configManager.cleanContent(rawText)
         let entryType = configManager.detectEntryType(from: rawText, triggerUsed: currentTrigger)
-        
+
         print("  - 清理后文本: '\(cleanedContent)'")
         print("  - 检测类型: \(entryType.displayName)")
         
@@ -275,6 +291,25 @@ final class CaptureEngine: ObservableObject {
         print("🤖 Triggered AI processing for entry: \(entry.content.prefix(50))...")
     }
     
+    private func handleTimerCapture(eventName: String) {
+        // Clear input if auto-clear is enabled
+        if configManager.configuration.autoClearInput {
+            clearCurrentInput()
+        }
+
+        // Create timer capture result
+        let result = TimerCaptureResult(
+            eventName: eventName,
+            triggerUsed: currentTrigger
+        )
+
+        // Post notification for timer tag selection popup
+        NotificationCenter.default.post(name: .notateDidDetectTimerTrigger, object: result)
+
+        print("🍅 Timer capture complete: '\(eventName)'")
+        resetCapture()
+    }
+
     private func clearCurrentInput() {
         // Clear the input field by sending backspace events
         // Capture the count before async dispatch to avoid race condition
