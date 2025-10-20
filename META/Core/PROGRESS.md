@@ -1,5 +1,169 @@
 # Development Progress
 
+## Session: 2025-10-20 - Pin Functionality Implementation
+
+### Completed Features
+
+#### 1. Pin/Unpin System for Entries and Events
+- **Data Model Updates**:
+  - Added `isPinned: Bool` property to Entry model
+  - Added helper methods: `togglePin()`, `pin()`, `unpin()`
+  - Created `PinManager.swift` singleton for managing pinned calendar event IDs
+  - Added `isPinned` computed property to CalendarEvent
+  - Database migration to add `is_pinned` column to existing installations
+
+- **Storage Implementation**:
+  - Entries: `is_pinned` column in SQLite database (INTEGER, default 0)
+  - Events: PinManager stores pinned event IDs in UserDefaults
+  - Database index on `is_pinned` column for efficient queries
+  - Automatic migration for existing databases
+
+#### 2. Pin UI Components
+- **Detail View Pin Buttons**:
+  - Pin/unpin button in upper left corner (parallel with close button)
+  - Icon-only design: `pin.fill` (yellow) when unpinned, `pin.slash.fill` (orange) when pinned
+  - Immediate visual feedback with local state management
+  - Size: 20pt icon
+  - Location: `SimpleEntryDetailView.swift`, `SimpleEventDetailView.swift`
+
+- **Pin Indicators on Cards**:
+  - Yellow pin icon (11pt) displayed on all pinned items
+  - Entry timeline cards: Pin icon next to title
+  - Event timeline cards: Pin icon in title row
+  - List page preview cards: Pin icon before timestamp
+  - Consistent placement across all card types
+
+#### 3. Pinned Section in Timeline View
+- **Dedicated Pinned Section**:
+  - Appears at top of timeline (above Midnight section)
+  - Header: "Pinned 📌"
+  - Only shown when there are pinned entries or events
+  - Shows pinned items for currently selected date
+  - Separate from time-based sections
+
+#### 4. Pinned Collection in List View
+- **Collection Update**:
+  - "Pinned" collection now shows actually pinned items (not placeholder)
+  - Mode-aware counts (Notes/Events/Both)
+  - `getPinnedCount()` method respects view mode selection
+  - Filters work correctly for pinned entries and events
+  - Badge displays accurate count
+
+#### 5. Technical Implementation Details
+- **Synchronous Updates to Prevent Flashing**:
+  - In-memory array updates happen synchronously on main thread
+  - Database saves occur on background queue
+  - No reload after save to prevent race conditions
+  - Fixed flash issue by updating `.id()` modifier to include pin state
+
+- **Race Condition Fixes**:
+  - ListView prefers `appState.selectedEntry` over array lookup
+  - Thread-safe updates with proper main thread checks
+  - Removed redundant `loadEntriesInternal()` call after saves
+  - Proper state management with `@State private var isPinned`
+
+- **View Recreation Strategy**:
+  - Changed `.id(entry.id)` to `.id("\(entry.id)-\(entry.isPinned)")`
+  - Forces view recreation when pin state changes
+  - Ensures fresh initialization with correct pin state
+  - Applied to both Timeline and List views
+
+### Commits Made (1 Total)
+
+1. **0b967fa** - `feat: implement pin/unpin functionality for entries and events`
+   - Created `Notate/Managers/PinManager.swift`
+   - Modified Entry.swift (added isPinned property and methods)
+   - Modified DatabaseManager.swift (database schema, migration, save/load)
+   - Modified CalendarService.swift (isPinned computed property)
+   - Modified ListView.swift (pinned collection, indicators, race condition fix)
+   - Modified TimelineView.swift (pinned section, view ID fix)
+   - Modified PieceTimelineCard.swift (pin indicator)
+   - Modified TimePeriodSection.swift (pin indicator for events)
+   - Modified SimpleEntryDetailView.swift (pin button, local state)
+   - Modified SimpleEventDetailView.swift (pin button, local state)
+
+### Files Modified/Created
+
+#### Created:
+- `Notate/Managers/PinManager.swift` - Singleton for managing pinned event IDs
+  - UserDefaults persistence
+  - Pin/unpin/toggle methods
+  - Bulk operations support
+  - Cleanup method for stale event IDs
+
+#### Modified:
+- `Notate/Models/Entry.swift` - Added isPinned property and helper methods
+- `Notate/Database/DatabaseManager.swift` - Database schema with migration
+- `Notate/Services/CalendarService.swift` - isPinned computed property for events
+- `Notate/Views/ListView.swift` - Pinned collection, counts, indicators, race fix
+- `Notate/Views/TimelineView.swift` - Pinned section, view ID update
+- `Notate/Views/PieceTimelineCard.swift` - Pin indicator for entries
+- `Notate/Views/TimePeriodSection.swift` - Pin indicator for events
+- `Notate/Views/SimpleEntryDetailView.swift` - Pin button UI
+- `Notate/Views/SimpleEventDetailView.swift` - Pin button UI
+
+### Technical Improvements
+
+1. **Database Migration System**:
+   - `migrateDatabaseSchema()` checks for column existence via `PRAGMA table_info`
+   - Adds `is_pinned` column with `ALTER TABLE` if missing
+   - Safe for existing installations (defaults to 0/unpinned)
+   - Automatic execution on app startup
+
+2. **Memory Management**:
+   - Synchronous in-memory updates on main thread when called from UI
+   - Async updates when called from background threads
+   - Proper thread safety with `Thread.isMainThread` checks
+   - No blocking operations on main thread
+
+3. **State Management**:
+   - Local `@State` for immediate UI feedback
+   - AppState updates for persistence
+   - PinManager @Published property for event pin state
+   - Proper SwiftUI view identity with composite IDs
+
+4. **Performance Optimization**:
+   - Database index on `is_pinned` column
+   - No reload after individual saves
+   - Cached pin state in PinManager
+   - Minimal UI rerenders with targeted updates
+
+### Testing Checklist
+
+- [x] Pin button appears in entry detail view
+- [x] Pin button appears in event detail view
+- [x] Clicking pin button immediately updates icon
+- [x] Pin state persists after closing detail view
+- [x] Pin state persists after app restart (entries)
+- [x] Pin state persists after app restart (events via PinManager)
+- [x] Pin indicators appear on timeline cards
+- [x] Pin indicators appear on list preview cards
+- [x] Pinned section shows in Timeline view
+- [x] Pinned section only shows when items are pinned
+- [x] Pinned collection in List view shows correct items
+- [x] Pinned counts are accurate and mode-aware
+- [x] No flash when toggling pin state
+- [x] Database migration runs successfully on existing installations
+- [x] Both entries and events can be pinned/unpinned
+- [x] Multiple items can be pinned simultaneously
+
+### Known Issues / Future Enhancements
+
+1. **No Keyboard Shortcut**: Pin/unpin action only available via button click
+2. **No Pinned Sorting**: Pinned items shown in chronological order (not pinned-first in regular sections)
+3. **No Pin Limit**: No maximum number of pins enforced
+4. **No Pin Analytics**: No tracking of most-pinned items or pin duration
+
+### Design Decisions
+
+- **Color Scheme**: Yellow (#FFD60A) for unpinned, orange for pinned (matches warm palette)
+- **Icon Choice**: `pin.fill` and `pin.slash.fill` for clarity
+- **Placement**: Upper left parallel with close button (consistent across detail views)
+- **Storage**: Entries use database column, events use PinManager (Calendar.app limitations)
+- **Section Position**: Pinned section at very top of timeline (most prominent)
+
+---
+
 ## Session: 2025-10-18 (Evening) - List Page Development & Refinement
 
 ### Completed Features

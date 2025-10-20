@@ -33,13 +33,16 @@
   - Entry and event details display properly
   - Scrolling works correctly
 
-- [ ] **Pin Functionality for Entries and Events** (2025-10-18)
+- [x] **Pin Functionality for Entries and Events** ✅ Completed (2025-10-20)
   - Add pin/unpin action to entries and calendar events
-  - Store pinned state in entry metadata
+  - Store pinned state in database (entries) and PinManager (events)
   - Update Pinned collection to show actually pinned items
-  - Pin icon in entry/event detail views
-  - Keyboard shortcut for pin/unpin
-  - Pinned items should stay at top of lists
+  - Pin button in entry/event detail views (upper left corner)
+  - Pin indicators on all timeline and list cards
+  - Pinned section at top of Timeline view
+  - Database migration for existing installations
+  - Synchronous updates to prevent UI flashing
+  - Mode-aware counts in List view
 
 ### UI Responsiveness & Layout (2025-10-18)
 - [ ] **Different Proportion Handling**
@@ -208,6 +211,22 @@
 ---
 
 ## Completed This Session ✅
+
+### 2025-10-20 - Pin Functionality Implementation
+- [x] Add isPinned property to Entry model with helper methods
+- [x] Create PinManager singleton for calendar events
+- [x] Database migration to add is_pinned column
+- [x] Pin/unpin button in detail views (upper left corner)
+- [x] Pin indicators on timeline cards (entries and events)
+- [x] Pin indicators on List page preview cards
+- [x] Pinned section at top of Timeline view
+- [x] Update Pinned collection in List view to show actual pinned items
+- [x] Mode-aware pinned counts (Notes/Events/Both)
+- [x] Fix UI flashing with synchronous in-memory updates
+- [x] Fix race conditions with proper state management
+- [x] View recreation strategy with composite IDs
+- [x] Thread-safe database updates
+- [x] Comprehensive testing across all views
 
 ### 2025-10-18 - Timer System Implementation
 - [x] Implement comprehensive timer workflow with ;;; trigger
