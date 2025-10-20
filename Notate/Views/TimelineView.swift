@@ -91,7 +91,7 @@ struct TimelineView: View {
                                     if let selectedEntry = appState.selectedEntry {
                                         SimpleEntryDetailView(entry: selectedEntry)
                                             .environmentObject(appState)
-                                            .id(selectedEntry.id)
+                                            .id("\(selectedEntry.id)-\(selectedEntry.isPinned)")
                                     } else if let selectedEvent = appState.selectedEvent {
                                         SimpleEventDetailView(event: selectedEvent)
                                             .environmentObject(appState)
@@ -180,7 +180,18 @@ struct TimelineView: View {
         // Timeline scroll view - takes full width given to it
         ScrollView {
                     VStack(spacing: NotateDesignSystem.Spacing.space5) {
-                        // Morning section (6am - 12pm)
+                        // Pinned section
+                        if !pinnedPieces.isEmpty || !pinnedEvents.isEmpty {
+                            TimePeriodSection(
+                                title: "Pinned",
+                                icon: "📌",
+                                pieces: pinnedPieces,
+                                events: pinnedEvents,
+                                selectedDate: selectedDate
+                            )
+                        }
+
+                        // Midnight section (12am - 6am)
                         TimePeriodSection(
                             title: "Midnight",
                             icon: "🌃",
@@ -323,6 +334,13 @@ struct TimelineView: View {
         return []
     }
 
+    private var pinnedPieces: [Entry] {
+        let calendar = Calendar.current
+        return appState.entries.filter { entry in
+            entry.isPinned && calendar.isDate(entry.createdAt, inSameDayAs: selectedDate)
+        }
+    }
+
     private var midnightPieces: [Entry] {
         print("🔍 Computing midnightPieces with \(appState.entries.count) total entries")
         return filterPieces(startHour: 0, endHour: 6)
@@ -362,6 +380,13 @@ struct TimelineView: View {
     }
 
     // Calendar events from EventKit
+    private var pinnedEvents: [CalendarEvent] {
+        let calendar = Calendar.current
+        return calendarService.events.filter { event in
+            event.isPinned && calendar.isDate(event.startTime, inSameDayAs: selectedDate)
+        }
+    }
+
     private var midnightEvents: [CalendarEvent] {
         calendarService.eventsForTimePeriod(startHour: 0, endHour: 6, on: selectedDate)
     }

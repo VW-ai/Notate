@@ -15,6 +15,7 @@ struct SimpleEventDetailView: View {
     @State private var tagInput: String = ""
     @State private var eventTags: [String] = []
     @State private var isUpdatingTags: Bool = false
+    @State private var isPinned: Bool
 
     init(event: CalendarEvent) {
         self.event = event
@@ -23,6 +24,7 @@ struct SimpleEventDetailView: View {
         _editedEndTime = State(initialValue: event.endTime)
         // Extract tags from notes (tags are stored as [tags: tag1, tag2])
         _eventTags = State(initialValue: Self.extractTags(from: event.notes))
+        _isPinned = State(initialValue: event.isPinned)
     }
 
     // Get tag suggestions from unified TagStore (universal, not date-dependent)
@@ -318,7 +320,22 @@ struct SimpleEventDetailView: View {
 
     private var closeButton: some View {
         HStack {
+            // Pin/Unpin button
+            Button(action: {
+                isPinned.toggle()
+                PinManager.shared.togglePin(event.id)
+                // Refresh events to trigger UI update
+                CalendarService.shared.fetchEvents(for: event.startTime)
+            }) {
+                Image(systemName: isPinned ? "pin.slash.fill" : "pin.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(isPinned ? .orange : Color(hex: "#FFD60A"))
+            }
+            .buttonStyle(PlainButtonStyle())
+
             Spacer()
+
+            // Close button
             Button(action: {
                 withAnimation {
                     appState.selectedEvent = nil

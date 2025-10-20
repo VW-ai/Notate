@@ -178,4 +178,9 @@ struct CalendarEvent: Identifiable {
     var uniqueID: String {
         return "\(id)-\(startTime.timeIntervalSince1970)"
     }
+
+    /// Check if this event is pinned
+    var isPinned: Bool {
+        return PinManager.shared.isPinned(id)
+    }
 }

@@ -321,6 +321,13 @@ struct StretchableEventCard: View {
 
                     Spacer()
 
+                    // Pin indicator
+                    if event.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#FFD60A"))
+                    }
+
                     // Collapse button at top right (only show if 2+ aligned pieces)
                     if alignedPiecesCount >= 2 {
                         Button(action: {

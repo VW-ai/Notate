@@ -11,6 +11,7 @@ struct SimpleEntryDetailView: View {
     @State private var tagInput: String = ""
     @State private var showTagSuggestions: Bool = false
     @State private var entryTags: [String] = []
+    @State private var isPinned: Bool
 
     // Get tag suggestions from unified TagStore (universal, not date-dependent)
     private var tagSuggestions: [String] {
@@ -21,6 +22,7 @@ struct SimpleEntryDetailView: View {
         self.entry = entry
         _editedContent = State(initialValue: entry.content)
         _entryTags = State(initialValue: entry.tags)
+        _isPinned = State(initialValue: entry.isPinned)
     }
 
     var body: some View {
@@ -45,9 +47,28 @@ struct SimpleEntryDetailView: View {
 
                         // Content positioned on the right side of the detail panel
                         VStack(alignment: .leading, spacing: 24) {
-                            // Close button at top right
+                            // Top buttons: Pin and Close
                             HStack {
+                                // Pin/Unpin button
+                                Button(action: {
+                                    isPinned.toggle()
+                                    var updatedEntry = entry
+                                    updatedEntry.isPinned = isPinned
+                                    print("🔍 PIN BUTTON: isPinned=\(isPinned), updatedEntry.isPinned=\(updatedEntry.isPinned), entry.id=\(entry.id)")
+                                    DatabaseManager.shared.updateEntry(updatedEntry)
+                                    // Update the selected entry immediately with our updated entry
+                                    appState.selectedEntry = updatedEntry
+                                    print("🔍 PIN BUTTON: Set appState.selectedEntry with isPinned=\(updatedEntry.isPinned)")
+                                }) {
+                                    Image(systemName: isPinned ? "pin.slash.fill" : "pin.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(isPinned ? .orange : Color(hex: "#FFD60A"))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+
                                 Spacer()
+
+                                // Close button
                                 Button(action: {
                                     withAnimation {
                                         appState.selectedEntry = nil
@@ -235,6 +256,16 @@ struct SimpleEntryDetailView: View {
         }
         .background(Color(hex: "#1C1C1E").opacity(0.5))
         .transition(.opacity)
+        .onAppear {
+            // Sync local state on appear
+            isPinned = entry.isPinned
+        }
+        .onChange(of: entry.id) { _ in
+            // When entry ID changes (different entry selected), sync state
+            isPinned = entry.isPinned
+            editedContent = entry.content
+            entryTags = entry.tags
+        }
     }
 
     // MARK: - Jump and Revert Actions

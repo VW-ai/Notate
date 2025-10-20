@@ -40,13 +40,21 @@ struct PieceTimelineCard: View {
 
                 // Right side: Content
                 VStack(alignment: .leading, spacing: NotateDesignSystem.Spacing.space3) {
-                    // Content (title)
-                    Text(piece.content)
-                        .font(.notateBodyMedium)
-                        .foregroundColor(.primary)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // Content (title) with pin indicator
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(piece.content)
+                            .font(.notateBodyMedium)
+                            .foregroundColor(.primary)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if piece.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#FFD60A"))
+                        }
+                    }
 
                     // Tags row (always reserve space)
                     if !piece.tags.isEmpty {

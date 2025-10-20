@@ -318,7 +318,7 @@ struct ListView: View {
                         collectionButton(
                             icon: "pin.fill",
                             title: "Pinned",
-                            count: allPinnedEntries.count,  // TODO: Implement pin functionality
+                            count: getPinnedCount(),
                             collection: .pinned
                         )
 
@@ -598,6 +598,8 @@ struct ListView: View {
         return Button(action: {
             selectedItemID = entry.id
             selectedItemType = .entry
+            appState.selectedEntry = entry
+            appState.selectedEvent = nil
         }) {
             HStack(spacing: 0) {
                 // Colored vertical line for notes
@@ -608,11 +610,19 @@ struct ListView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     // Header: timestamp + tags (aligned at fixed position)
                     HStack(spacing: 0) {
+                        // Pin indicator
+                        if entry.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "#FFD60A"))
+                                .frame(width: 16)
+                        }
+
                         // Time - fixed width to ensure tag alignment
                         Text(formattedDate(entry.createdAt))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
-                            .frame(width: 100, alignment: .leading)
+                            .frame(width: entry.isPinned ? 84 : 100, alignment: .leading)
 
                         // Tags - start at fixed position (100pt from left)
                         if !entry.tags.isEmpty {
@@ -672,6 +682,8 @@ struct ListView: View {
         return Button(action: {
             selectedItemID = event.uniqueID
             selectedItemType = .event
+            appState.selectedEvent = event
+            appState.selectedEntry = nil
         }) {
             HStack(spacing: 0) {
                 // Colored vertical line for events (light blue for all-day events)
@@ -682,17 +694,25 @@ struct ListView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     // Header: timestamp + tags (aligned at fixed position)
                     HStack(spacing: 0) {
+                        // Pin indicator
+                        if event.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "#FFD60A"))
+                                .frame(width: 16)
+                        }
+
                         // Time - fixed width to ensure tag alignment
                         if event.isAllDay {
                             Text(formattedDateOnly(event.startTime))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
-                                .frame(width: 100, alignment: .leading)
+                                .frame(width: event.isPinned ? 84 : 100, alignment: .leading)
                         } else {
                             Text(formattedDate(event.startTime))
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
-                                .frame(width: 100, alignment: .leading)
+                                .frame(width: event.isPinned ? 84 : 100, alignment: .leading)
                         }
 
                         // Tags - start at fixed position (100pt from left)
@@ -751,15 +771,27 @@ struct ListView: View {
     private var detailPane: some View {
         ZStack {
             if let itemID = selectedItemID {
-                if selectedItemType == .entry,
-                   let entry = appState.entries.first(where: { $0.id == itemID }) {
-                    GeometryReader { geometry in
-                        ScrollView {
-                            SimpleEntryDetailView(entry: entry)
-                                .environmentObject(appState)
-                                .id(entry.id)
-                                .frame(width: geometry.size.width)
-                                .frame(minHeight: geometry.size.height, alignment: .topLeading)
+                if selectedItemType == .entry {
+                    // Use appState.selectedEntry if available and matches, otherwise fall back to entries array
+                    let entry = (appState.selectedEntry?.id == itemID)
+                        ? appState.selectedEntry
+                        : appState.entries.first(where: { $0.id == itemID })
+
+                    if let entry = entry {
+                        GeometryReader { geometry in
+                            ScrollView {
+                                SimpleEntryDetailView(entry: entry)
+                                    .environmentObject(appState)
+                                    .id("\(entry.id)-\(entry.isPinned)")
+                                    .frame(width: geometry.size.width)
+                                    .frame(minHeight: geometry.size.height, alignment: .topLeading)
+                            }
+                        }
+                        .onReceive(appState.$selectedEntry) { selectedEntry in
+                            // If detail view closed itself by setting selectedEntry to nil
+                            if selectedEntry == nil {
+                                selectedItemID = nil
+                            }
                         }
                     }
                 } else if selectedItemType == .event,
@@ -771,6 +803,12 @@ struct ListView: View {
                                 .id(event.id)
                                 .frame(width: geometry.size.width)
                                 .frame(minHeight: geometry.size.height, alignment: .topLeading)
+                        }
+                    }
+                    .onReceive(appState.$selectedEvent) { selectedEvent in
+                        // If detail view closed itself by setting selectedEvent to nil
+                        if selectedEvent == nil {
+                            selectedItemID = nil
                         }
                     }
                 } else {
@@ -799,13 +837,7 @@ struct ListView: View {
 
     // Unfiltered counts for collection badges
     private var allPinnedEntries: [Entry] {
-        appState.entries.filter { entry in
-            if let metadata = entry.metadata,
-               let pinned = metadata["pinned"]?.wrappedValue as? Bool {
-                return pinned
-            }
-            return false
-        }
+        appState.entries.filter { $0.isPinned }
     }
 
     private var allRecentlyEditedEntries: [Entry] {
@@ -842,13 +874,7 @@ struct ListView: View {
             case .allNotes:
                 break // Show all (already search-filtered)
             case .pinned:
-                entries = entries.filter { entry in
-                    if let metadata = entry.metadata,
-                       let pinned = metadata["pinned"]?.wrappedValue as? Bool {
-                        return pinned
-                    }
-                    return false
-                }
+                entries = entries.filter { $0.isPinned }
             case .recentlyEdited:
                 let calendar = Calendar.current
                 let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
@@ -888,8 +914,7 @@ struct ListView: View {
             case .allNotes:
                 break // Show all (already search-filtered)
             case .pinned:
-                // Events don't have pinned status for now
-                events = []
+                events = events.filter { $0.isPinned }
             case .recentlyEdited:
                 let calendar = Calendar.current
                 let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
@@ -987,6 +1012,20 @@ struct ListView: View {
             let recentEntries = timeFilteredEntries.filter { $0.createdAt >= twoDaysAgo }.count
             let recentEvents = timeFilteredEvents.filter { $0.startTime >= twoDaysAgo }.count
             return recentEntries + recentEvents
+        }
+    }
+
+    /// Get "Pinned" count based on current view mode
+    private func getPinnedCount() -> Int {
+        switch viewMode {
+        case .notes:
+            return appState.entries.filter { $0.isPinned }.count
+        case .events:
+            return allCalendarEvents.filter { $0.isPinned }.count
+        case .both:
+            let pinnedEntries = appState.entries.filter { $0.isPinned }.count
+            let pinnedEvents = allCalendarEvents.filter { $0.isPinned }.count
+            return pinnedEntries + pinnedEvents
         }
     }
 
