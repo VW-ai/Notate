@@ -2,6 +2,51 @@
 
 ## High Priority
 
+### Data Architecture Decisions (2025-10-20)
+
+- [ ] **Calendar Event Database Indexing** - Decision Needed
+  - **Question**: Should we store an index/reference of calendar events in our SQLite database?
+  - **Current State**: Calendar events only exist in macOS Calendar via EventKit
+  - **Pros of Indexing**:
+    - Unified querying across entries and events
+    - Faster filtering and search
+    - Can add custom metadata (user notes, AI analysis) to events
+    - Backup/export includes calendar data
+    - Support offline analysis
+  - **Cons of Indexing**:
+    - Data duplication between Calendar.app and database
+    - Sync complexity (handle external calendar changes)
+    - Storage overhead
+    - Calendar.app is already optimized for event storage
+  - **Impact Areas**:
+    - Analysis page data loading performance
+    - Tag filtering across both data types
+    - Search functionality
+    - Export operations
+  - **Next Steps**: Benchmark current EventKit query performance, evaluate sync strategy
+
+### Calendar Event Features (2025-10-20)
+
+- [ ] **Recurring Event Tag Handling**
+  - Implement Apple Calendar-style tag editing for recurring events
+  - When user adds/modifies tags on a recurring event, present options:
+    - "Tag only this event"
+    - "Tag all events in series"
+    - "Tag this and future events"
+  - **Technical Considerations**:
+    - EventKit recurring event structure (originalEvent, detached instances)
+    - Tag storage in notes field for each occurrence
+    - UI/UX matching system Calendar.app patterns
+    - Handle edge cases (modified instances, exceptions)
+  - **Implementation Strategy**:
+    1. Detect if event is recurring (check `event.hasRecurrenceRules`)
+    2. Show action sheet with three options
+    3. Apply tag changes based on selection:
+       - This only: Detach instance if needed, modify notes
+       - All events: Modify original event's notes
+       - This and future: Complex - may need to split recurrence rule
+  - **Design Mockup Needed**: Action sheet matching macOS style
+
 ### List Page Enhancements (2025-10-18)
 - [x] **Year/Month/Mode Selector System** ✅ Completed
   - Horizontal layout with three selector groups
@@ -212,6 +257,23 @@
 
 ## Completed This Session ✅
 
+### 2025-10-20 - Analysis Page Implementation
+- [x] Create comprehensive time analytics page with 7 interactive charts
+- [x] Implement AnalyticsModels.swift with all data structures
+- [x] Build AnalysisViewModel with tag extraction and aggregation
+- [x] Create 7 chart components (TimeByTag, Distribution, Daily, Heatmap, Focus, Weekly, Insights)
+- [x] Fix tag extraction regex to match `[tags: tag1, tag2]` format
+- [x] Match design language with borderless dark theme
+- [x] Implement TimeRangePicker matching ListView button style
+- [x] Add 80px top spacer and top-center selector layout
+- [x] Fix 5 compilation errors (ViewBuilder, type conversion, imports, generics)
+- [x] Increase all font sizes for better readability
+- [x] Implement CSV and JSON export with native save dialogs
+- [x] Add week-over-week comparison metrics
+- [x] Build 7×24 hourly heatmap visualization
+- [x] Create smart insights generation (6 insight types)
+- [x] Integrate with CalendarService and TagColorManager
+
 ### 2025-10-20 - Pin Functionality Implementation
 - [x] Add isPinned property to Entry model with helper methods
 - [x] Create PinManager singleton for calendar events
@@ -258,7 +320,7 @@
 - [x] Fix time display wrapping in timeline cards
 - [x] Move duration/AI actions to bottom right of cards
 
-### 2025-01-16 - Tag Management System
+### 2025-10-16 - Tag Management System
 - [x] Create tag management panel with drag-and-drop
 - [x] Implement 72-color palette system
 - [x] Add tag suggestions (top 8 most-used)

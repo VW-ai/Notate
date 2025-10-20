@@ -725,7 +725,7 @@
 
 ---
 
-## Session: 2025-01-16 - Tag Management System
+## Session: 2025-10-16 - Tag Management System
 
 ### Completed Features
 
@@ -855,6 +855,231 @@
 - Colors cached in memory with UserDefaults persistence
 - Drag-and-drop uses standard NSItemProvider system
 - No performance issues observed with current implementation
+
+---
+
+## Session 2025-10-20 - Analysis Page Implementation
+
+**Duration**: Extended session with multiple user feedback iterations
+**Status**: ✅ Complete and Integrated
+
+### Overview
+
+Implemented comprehensive time analytics page with 7 interactive visualizations showing calendar event data analysis. Major focus on matching existing design language (borderless, dark theme, yellow highlights) and fixing tag extraction from calendar event notes.
+
+### Files Created
+
+#### Data Models
+- `Notate/Models/AnalyticsModels.swift` - Core data structures
+  - `TimeRange` enum with 7 options (Today, Week, Month, Quarter, Year, All Time, Custom)
+  - `TimeAnalytics` struct with computed properties
+  - `TagTimeData`, `DailyTimeData`, `SessionBucket`, `WeeklyData`, `Insight` models
+  - Date range calculation logic for all time ranges
+
+#### View Model
+- `Notate/ViewModels/AnalysisViewModel.swift` - Analytics engine (350+ lines)
+  - Async/await data loading from CalendarService
+  - Tag extraction from event notes (`[tags: tag1, tag2]` format)
+  - Time aggregation by tag, day, hour, week
+  - 7×24 heatmap generation (hourly activity by weekday)
+  - Session duration bucketing
+  - Week-over-week comparison metrics
+  - Smart insights generation (6 insight types)
+  - CSV and JSON export functionality
+
+#### Main View
+- `Notate/Views/Analysis/AnalysisView.swift` - Container view
+  - 80px top spacer matching other pages
+  - Top-center time range selector layout
+  - Refresh button (left) and export menu (right)
+  - Scrollable content area with chart grid
+  - Loading overlay with progress indicator
+  - Native macOS save dialogs for export
+
+#### Components
+- `Notate/Views/Analysis/Components/TimeRangePicker.swift`
+  - Quick range buttons (Today through All Time)
+  - Custom date range picker with popover
+  - Yellow (#FFD60A) selection highlight
+  - Button sizing: 48px unselected → 56px selected
+  - Font sizing: 14pt semibold → 18pt bold
+  - Spring animations matching ListView mode selector
+
+- `Notate/Views/Analysis/Components/InsightsPanel.swift`
+  - 6 insight types with icons and colors
+  - Top category, productive hours, untagged warning
+  - Deep focus sessions, most active day, productivity trend
+  - Actionable buttons (Review, View Details)
+  - Larger fonts: .title2 icons, .body messages
+
+#### Stats Cards
+- `Notate/Views/Analysis/AnalysisStatsCards.swift`
+  - 5 overview metric cards
+  - Total hours, event count, most active day
+  - Top category with week-over-week comparison
+  - Tagged vs untagged percentage
+  - Larger fonts: .title values, .headline titles
+  - Translucent card backgrounds (white.opacity(0.05))
+
+#### Charts (7 visualizations)
+
+1. **TimeByTagChart.swift** - Horizontal bar chart
+   - Top 10 tags by total hours
+   - Hours on X-axis, tags on Y-axis
+   - Tag colors from TagColorManager
+   - Value annotations on bars
+
+2. **TagDistributionChart.swift** - Pie/donut chart
+   - Percentage breakdown by tag
+   - Legend with hours and percentages
+   - Empty state handling
+
+3. **DailyDistributionChart.swift** - Stacked bar chart
+   - Days on X-axis, hours on Y-axis
+   - Top 5 tags color-coded
+   - "Other" category for remaining tags
+   - Fixed generic parameter inference with direct color assignment
+
+4. **TimeOfDayHeatmap.swift** - 7×24 activity grid
+   - Weekdays (Mon-Sun) on Y-axis
+   - Hours (12am-11pm) on X-axis
+   - Color intensity by activity level
+   - Custom grid rendering
+
+5. **FocusSessionChart.swift** - Histogram
+   - Session duration buckets (<30m, 30m-1h, 1-2h, 2h+)
+   - Count of sessions per bucket
+   - Highlights deep focus (2h+) sessions
+
+6. **WeeklyTrendChart.swift** - Line chart
+   - 12 weeks of historical data
+   - Total hours per week
+   - Gradient area fill
+   - Trend indicator (↑ up/↓ down/→ stable)
+
+7. **InsightsPanel.swift** (already listed above)
+
+### Technical Fixes
+
+#### Compilation Errors Fixed
+
+1. **ViewBuilder Return Statements** (WeeklyTrendChart, TimeOfDayHeatmap)
+   - Removed explicit `return` keywords in Preview contexts
+   - SwiftUI ViewBuilder syntax compliance
+
+2. **Type Conversion - .reversed()** (WeeklyTrendChart, DailyDistributionChart)
+   - Wrapped `ReversedCollection` with `Array()` constructor
+   - Fixed type mismatch errors
+
+3. **Missing Import** (AnalysisView)
+   - Added `import UniformTypeIdentifiers` for `.commaSeparatedText` and `.json` types
+
+4. **Complex Expression Timeout** (DailyDistributionChart)
+   - Broke complex Chart expression into local variable
+   - Reduced type-checker complexity
+
+5. **Generic Parameter Inference** (DailyDistributionChart)
+   - Removed `.chartForegroundStyleScale()` modifier
+   - Applied colors directly to BarMarks: `.foregroundStyle(getColor(for:))`
+   - Added `stacking: .standard` parameter
+
+#### Bug Fixes
+
+**Tag Extraction Not Working** - Critical fix
+- **Problem**: All events showing as untagged despite having tags
+- **Root Cause**: Wrong regex pattern (looking for `#tag1` instead of `[tags: tag1, tag2]`)
+- **Solution**: Updated `extractTags()` to match SimpleEventDetailView format
+  ```swift
+  let pattern = "\\[tags: ([^\\]]+)\\]"
+  let tagsString = String(notes[tagsRange])
+  return tagsString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+  ```
+- **Added**: `#` prefix when displaying tags for consistency
+
+### Design Evolution
+
+#### Iteration 1: Font Sizes Too Small
+**User Feedback**: "one problem the words are too small"
+
+**Changes Applied**:
+- Section headers: `.caption` → `.headline`
+- Stats card values: `.title2` → `.title`
+- Button text: `.caption` → `.callout`
+- Insights: `.title3` → `.title2`, `.callout` → `.body`
+- Chart annotations: increased by 2-3 points
+
+#### Iteration 2: Design Language Mismatch
+**User Feedback**: "can we posse the same design language as our previous page, where try to eliminate border, and use the same background color as the others, and on top, in the middle, are our selectors, not to the right"
+
+**Changes Applied**:
+- Removed all `.cornerRadius()` and border strokes
+- Changed all backgrounds to `Color(hex: "#1C1C1E")`
+- Moved time range selector from toolbar to top-center layout
+- Added 80px top spacer matching Timeline/List views
+- Used translucent overlays `Color.white.opacity(0.05)` instead of borders
+- Removed navigation toolbar controls
+
+#### Iteration 3: Button Styling
+**User Feedback**: "the selector buttons, should be bigger, and unselected it should be yellow, just like the mode selector button in list view"
+
+**Analysis**: Examined ListView mode selector implementation
+
+**Changes Applied**:
+- Selected state: `#FFD60A` (yellow) background, dark text, 56px height, 18pt bold
+- Unselected state: `#3A3A3C` (gray) background, secondary text, 48px height, 14pt semibold
+- Min width: 100px
+- Corner radius: 12px
+- Spring animation: `response: 0.5, dampingFraction: 0.7`
+- Applied to all range buttons and custom picker button
+
+### Integration
+
+- ✅ Updated `InsightsView.swift` to use `AnalysisView()`
+- ✅ Wired to bottom navigation "Analysis" tab
+- ✅ Uses `CalendarService` for direct EventKit access
+- ✅ Integrates with `TagColorManager` for consistent colors
+- ✅ Follows Notate dark theme design system
+- ✅ Export to CSV and JSON with native save dialogs
+
+### Data Architecture Discussion
+
+**User Question**: "why are we using the calendar directly instead of database's events though?"
+
+**Answer**:
+- Calendar events have **duration** (start/end times) → essential for TIME analysis
+- Database entries have only single **timestamp** → suitable for activity/frequency tracking
+- Time analytics requires duration calculations → must use calendar events
+- Current approach is correct for time-tracking visualizations
+
+### Technical Highlights
+
+- Swift Charts framework (native macOS 13+)
+- Async/await with proper error handling
+- Type-safe analytics models
+- Regex tag extraction with proper escaping
+- Memory-efficient aggregation algorithms
+- Edge case handling (empty data, untagged events, all-day events)
+- Export with auto-generated ISO8601 filenames
+- Week-over-week metrics calculation
+- Custom heatmap rendering with 168 cells (7×24)
+
+### Known Limitations
+
+- Does not analyze database entries (no duration data)
+- Tag extraction depends on specific format in notes field
+- Custom date range state stored in view model (not persisted)
+- Export is synchronous (may block UI for large datasets)
+
+### Files Modified
+
+- `Notate/Views/InsightsView.swift` - Replaced placeholder with AnalysisView
+
+### Total Code Added
+
+- **15 new files** (~2000+ lines of Swift/SwiftUI code)
+- **1 file modified**
+- All files compile without warnings
+- Full integration with existing services
 
 ---
 
