@@ -1,12 +1,11 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Run lint-staged for frontend
 npx lint-staged
 
 # Run Rust checks if Rust files changed
 if git diff --cached --name-only | grep -q "\.rs$"; then
   echo "Running Rust checks..."
+  # Source cargo environment if available
+  [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
   cd apps/desktop/src-tauri
   cargo fmt --all -- --check
   cargo clippy --all-targets --all-features -- -D warnings

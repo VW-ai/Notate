@@ -1,0 +1,39 @@
+{
+  "name": "notate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A lightweight personal knowledge layer that captures thoughts via hotkey, auto-organizes with AI, and helps you see how your ideas evolve.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run tauri:dev -w @notate/desktop",
+    "build": "npm run tauri:build -w @notate/desktop",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "npm run test -w @notate/desktop",
+    "test:backend": "cd apps/desktop/src-tauri && cargo test",
+    "lint": "npm run lint -w @notate/desktop",
+    "lint:fix": "npm run lint:fix -w @notate/desktop",
+    "format": "npm run format -w @notate/desktop",
+    "format:check": "npm run format:check -w @notate/desktop",
+    "typecheck": "npm run typecheck -w @notate/desktop",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

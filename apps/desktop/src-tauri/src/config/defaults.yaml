@@ -1,0 +1,40 @@
+# Default configuration values for Notate
+app:
+  name: 'Notate'
+  version: '1.0.0'
+
+capture:
+  max_content_length: 50000
+  max_file_size:
+    image: 10485760 # 10 MB
+    document: 52428800 # 50 MB
+
+evolution:
+  similarity_threshold:
+    hint: 0.75 # Evolution hint threshold
+    trace: 0.70 # Trace clustering threshold
+  min_captures_for_trace: 3
+  hint_cooldown_hours: 1
+
+ai:
+  timeout_ms:
+    embedding: 10000
+    tagging: 15000
+    summary: 15000
+  retry:
+    embedding: 2
+    tagging: 1
+    summary: 1
+
+ui:
+  overlay:
+    width: 400
+    height: 300
+  animation:
+    duration_ms: 200
+
+storage:
+  db_name: 'notate.db'
+  vectors_dir: 'vectors'
+  files_dir: 'files'
+  cache_dir: 'cache'
