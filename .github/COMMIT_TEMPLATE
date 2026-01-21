@@ -1,0 +1,24 @@
+# <type>(<scope>): <description>
+#
+# [optional body]
+#
+# [optional footer]
+#
+# --- TYPES ---
+# feat:     New feature
+# fix:      Bug fix
+# docs:     Documentation only
+# style:    Formatting, no code change
+# refactor: Code refactoring
+# test:     Adding/updating tests
+# chore:    Maintenance tasks
+#
+# --- SCOPES ---
+# overlay, timeline, canvas, traces, capture
+# db, ai, ipc, commands, services
+# config, build, ci
+#
+# --- EXAMPLES ---
+# feat(overlay): add quick capture input
+# fix(db): resolve connection timeout issue
+# docs(readme): update installation steps

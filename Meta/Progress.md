@@ -4,6 +4,21 @@ Append-only development log. Add new entries at the top.
 
 ---
 
+## 2026-01-21
+
+### Completed
+- Restructured core documentation (removed outdated specs)
+- Added detailed IPC, backend, frontend technical specs
+- Created M2-M6 milestone roadmap
+- Added TypeScript and Rust style skills
+- Enhanced commit skill with progress tracking and split commit support
+- Added GitHub PR template and commit template
+
+### Next
+- Begin M1 implementation: Tauri project setup
+
+---
+
 ## 2025-01-20
 
 ### Completed
