@@ -158,7 +158,8 @@ Custom Claude skills in `.claude/skills/`:
 
 | Skill | Purpose |
 |-------|---------|
-| code-style | Enforce TypeScript and Rust coding conventions |
+| typescript-style | Enforce TypeScript/React coding conventions for frontend |
+| rust-style | Enforce Rust conventions and Data Driven development for backend |
 | commit | Generate conventional commit messages |
 
 ## Contributing

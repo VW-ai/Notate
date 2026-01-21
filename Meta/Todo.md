@@ -20,6 +20,10 @@ Deferred tasks and ideas. Not urgent, but don't want to forget.
 - [ ] Set up LanceDB for vector storage - Required for semantic search
 - [ ] Configure Gemini API integration - Required for AI features
 - [ ] Implement React component library - Based on Components.md
+- [ ] 补完后端 Feature 逻辑文档 - backend/Feature/ 下各功能模块的详细设计
+- [ ] 补完前端 Page 文档 - frontend/Page/ 下各页面的交互细节
+- [ ] 校验前端 Component Design 文档 - 确保 Components.md 与实际实现一致
+- [ ] 前后端 Align on IPC Contract - 确保 IPC/API.md 与前后端实现对齐
 
 ## Low Priority
 

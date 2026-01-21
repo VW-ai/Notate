@@ -104,7 +104,7 @@ L4 是真正让用户觉得"这个工具理解我"的层级。
 - 💭 Thought（想法/随记）
 - 🔗 Link（链接）
 - 📄 File（文件）
-- 📷 Screenshot（截屏获取 Context）
+- 📷 Image（图片）
 
 ### 3.2 演化追踪（Evolution Tracking）
 
@@ -252,7 +252,7 @@ L4 是真正让用户觉得"这个工具理解我"的层级。
 **流程**：
 1. 获取 Context（截屏或粘贴）
 2. 输入想要表达的内容
-3. 选择 Style（可选）：Professional / Polite / Shorter / Longer
+3. 选择 Style（可选）：Professional / Polite / Friendly / Shorter / Longer
 4. AI 生成优化后的消息 → 自动复制到剪贴板
 5. 用户 Cmd+V 粘贴使用
 

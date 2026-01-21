@@ -11,7 +11,7 @@
 
 ### Documents
 - **[Progress.md](Progress.md)** - Append-only development log
-- **[Todo.md](Todo.md)** - Deferred tasks backlog
+- **[TODO.md](TODO.md)** - Deferred tasks backlog
 - **[Labels.md](Labels.md)** - Label conventions for issues and PRs
 
 ## Usage
