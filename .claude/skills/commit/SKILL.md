@@ -1,6 +1,6 @@
 # Commit Skill
 
-> Generate conventional commit messages for Notate.
+> Generate conventional commit messages for Notate with automatic progress tracking.
 
 ## When to Use
 
@@ -8,6 +8,58 @@ Use this skill when:
 - Creating a new commit
 - Reviewing commit message format
 - Preparing a PR
+
+## Workflow
+
+When `/commit` is invoked, follow these steps:
+
+### Step 1: Analyze Changes
+
+```bash
+git status
+git diff --stat
+git diff
+```
+
+Assess the scope and nature of all changes.
+
+### Step 2: Decide on Commit Strategy
+
+**If changes are cohesive** (single feature/fix/topic):
+- Proceed with a single commit
+
+**If changes span multiple concerns** (e.g., feature + refactor + docs):
+- Split into logical atomic commits
+- Each commit should be independently buildable
+- Group by: feature, component, or concern
+- Stage files selectively: `git add <specific-files>`
+
+### Step 3: Update Progress.md
+
+Before committing, update `Meta/Progress.md`:
+
+1. Check if today's date section exists
+2. If not, create new section at top (after the `---` separator)
+3. Add completed items based on what's being committed
+4. Use the template format in Progress.md
+
+Example addition:
+```markdown
+## 2025-01-21
+
+### Completed
+- Added quick capture overlay component
+- Implemented global hotkey registration
+
+### Next
+- Connect overlay to backend IPC
+```
+
+### Step 4: Create Commit(s)
+
+1. Stage Progress.md along with related changes
+2. Write commit message following format below
+3. Execute commit
 
 ## Commit Message Format
 
@@ -90,3 +142,45 @@ Examples:
 - `feat/quick-capture-overlay`
 - `fix/duplicate-tag-creation`
 - `docs/api-documentation`
+
+## Splitting Large Changes
+
+When changes are too large or span multiple concerns, split them:
+
+### Signs You Should Split
+
+- Changes touch 3+ unrelated areas
+- Mix of feature code + refactoring
+- Multiple independent fixes
+- Docs changes unrelated to code changes
+
+### How to Split
+
+```bash
+# Stage specific files for first commit
+git add src/components/Overlay.tsx src/hooks/useOverlay.ts
+git commit -m "feat(overlay): add overlay component"
+
+# Stage next set of files
+git add src/services/capture.ts
+git commit -m "feat(capture): add capture service"
+
+# Stage docs/meta last
+git add Meta/Progress.md
+git commit -m "docs(progress): update progress log"
+```
+
+### Split Strategy Priority
+
+1. **Infrastructure/config** first (if any)
+2. **Backend changes** second
+3. **Frontend changes** third
+4. **Tests** with their related code
+5. **Documentation/meta** last
+
+### Atomic Commit Principle
+
+Each commit should:
+- Build successfully on its own
+- Have a clear, single purpose
+- Be revertable without breaking other changes
