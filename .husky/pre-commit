@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged for frontend
+npx lint-staged
+
+# Run Rust checks if Rust files changed
+if git diff --cached --name-only | grep -q "\.rs$"; then
+  echo "Running Rust checks..."
+  cd apps/desktop/src-tauri
+  cargo fmt --all -- --check
+  cargo clippy --all-targets --all-features -- -D warnings
+  cd -
+fi
