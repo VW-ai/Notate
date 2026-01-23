@@ -4,6 +4,23 @@ Append-only development log. Add new entries at the top.
 
 ---
 
+## 2026-01-23
+
+### Completed
+
+- Consolidated design documentation from root-level files into Meta/Core/frontend/
+- Updated Design.md (v2.0): merged design principles, Kaomoji system, visual tokens, Rainbow rules, animation system
+- Updated Interface.md: added Overlay interaction patterns (3-template system), keyboard specs, Ask Mode, Compose Mode
+- Updated Components.md (v2.0): added component style code (glass card, buttons, inputs, pills, message bubbles)
+- Removed redundant DESIGN-LANGUAGE.md and DESIGN-SYSTEM.md from project root
+
+### Next
+
+- Implement Quick Capture overlay UI
+- Add global hotkey (⌘+Shift+Space)
+
+---
+
 ## 2026-01-21
 
 ### Completed
