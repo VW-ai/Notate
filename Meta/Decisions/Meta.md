@@ -5,6 +5,7 @@ This folder contains Architecture Decision Records (ADRs) documenting significan
 ## What is an ADR?
 
 An ADR captures a single architectural decision, including:
+
 - The context and problem we faced
 - The decision we made
 - Alternatives we considered
@@ -36,6 +37,9 @@ Proposed → Accepted → [Deprecated | Superseded]
 
 ## Index
 
-| Number | Title | Status | Date |
-|--------|-------|--------|------|
-| [ADR-0001](ADR-0001-tauri-desktop-framework.md) | Use Tauri for Desktop Framework | Accepted | 2025-01-20 |
+| Number                                                | Title                           | Status   | Date       |
+| ----------------------------------------------------- | ------------------------------- | -------- | ---------- |
+| [ADR-0001](ADR-0001-tauri-desktop-framework.md)       | Use Tauri for Desktop Framework | Accepted | 2025-01-20 |
+| [ADR-0002](ADR-0002-evolution-detection-algorithm.md) | Evolution Detection Algorithm   | Accepted | 2025-01-26 |
+| [ADR-0003](ADR-0003-gemini-as-ai-provider.md)         | Gemini as AI Provider           | Accepted | 2025-01-26 |
+| [ADR-0004](ADR-0004-cloud-embedding-strategy.md)      | Cloud Embedding Strategy        | Accepted | 2025-01-26 |
