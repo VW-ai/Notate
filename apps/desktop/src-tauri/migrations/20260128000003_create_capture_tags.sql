@@ -11,4 +11,3 @@ CREATE TABLE IF NOT EXISTS capture_tags (
 );
 
 CREATE INDEX IF NOT EXISTS idx_capture_tags_tag ON capture_tags(tag_id);
-CREATE INDEX IF NOT EXISTS idx_captures_primary_tag ON captures(primary_tag_id);

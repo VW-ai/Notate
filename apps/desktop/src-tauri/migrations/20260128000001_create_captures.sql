@@ -18,3 +18,4 @@ CREATE TABLE IF NOT EXISTS captures (
 CREATE INDEX IF NOT EXISTS idx_captures_type ON captures(type);
 CREATE INDEX IF NOT EXISTS idx_captures_created_at ON captures(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_captures_is_deleted ON captures(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_captures_primary_tag ON captures(primary_tag_id);

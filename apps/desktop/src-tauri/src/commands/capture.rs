@@ -1,6 +1,7 @@
 use crate::config::AppConfig;
 use crate::db::models::capture::{Capture, CreateCaptureInput};
 use crate::db::DbPool;
+use crate::errors::AppError;
 use crate::services::capture_service;
 use tauri::State;
 
@@ -9,28 +10,22 @@ pub async fn create_capture(
     input: CreateCaptureInput,
     pool: State<'_, DbPool>,
     config: State<'_, AppConfig>,
-) -> Result<Capture, String> {
+) -> Result<Capture, AppError> {
     tracing::debug!(
         "IPC: create_capture called with type={:?}",
         input.capture_type
     );
     capture_service::create(&pool, input, &config.capture)
         .await
-        .map_err(|e| {
-            let err_str: String = e.into();
-            tracing::warn!("IPC: create_capture failed: {}", err_str);
-            err_str
-        })
+        .map_err(AppError::from)
 }
 
 #[tauri::command]
-pub async fn get_capture(id: String, pool: State<'_, DbPool>) -> Result<Capture, String> {
+pub async fn get_capture(id: String, pool: State<'_, DbPool>) -> Result<Capture, AppError> {
     tracing::debug!("IPC: get_capture called with id={}", id);
-    capture_service::get_by_id(&pool, &id).await.map_err(|e| {
-        let err_str: String = e.into();
-        tracing::warn!("IPC: get_capture failed: {}", err_str);
-        err_str
-    })
+    capture_service::get_by_id(&pool, &id)
+        .await
+        .map_err(AppError::from)
 }
 
 #[tauri::command]
@@ -38,7 +33,7 @@ pub async fn get_captures(
     limit: Option<i64>,
     offset: Option<i64>,
     pool: State<'_, DbPool>,
-) -> Result<Vec<Capture>, String> {
+) -> Result<Vec<Capture>, AppError> {
     tracing::debug!(
         "IPC: get_captures called with limit={:?}, offset={:?}",
         limit,
@@ -46,11 +41,7 @@ pub async fn get_captures(
     );
     capture_service::list(&pool, limit.unwrap_or(20), offset.unwrap_or(0))
         .await
-        .map_err(|e| {
-            let err_str: String = e.into();
-            tracing::warn!("IPC: get_captures failed: {}", err_str);
-            err_str
-        })
+        .map_err(AppError::from)
 }
 
 #[tauri::command]
@@ -59,23 +50,17 @@ pub async fn update_capture(
     content: String,
     pool: State<'_, DbPool>,
     config: State<'_, AppConfig>,
-) -> Result<Capture, String> {
+) -> Result<Capture, AppError> {
     tracing::debug!("IPC: update_capture called with id={}", id);
     capture_service::update(&pool, &id, &content, &config.capture)
         .await
-        .map_err(|e| {
-            let err_str: String = e.into();
-            tracing::warn!("IPC: update_capture failed: {}", err_str);
-            err_str
-        })
+        .map_err(AppError::from)
 }
 
 #[tauri::command]
-pub async fn delete_capture(id: String, pool: State<'_, DbPool>) -> Result<(), String> {
+pub async fn delete_capture(id: String, pool: State<'_, DbPool>) -> Result<(), AppError> {
     tracing::debug!("IPC: delete_capture called with id={}", id);
-    capture_service::delete(&pool, &id).await.map_err(|e| {
-        let err_str: String = e.into();
-        tracing::warn!("IPC: delete_capture failed: {}", err_str);
-        err_str
-    })
+    capture_service::delete(&pool, &id)
+        .await
+        .map_err(AppError::from)
 }

@@ -1,4 +1,5 @@
 pub mod models;
+pub mod repositories;
 
 use directories::ProjectDirs;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
@@ -79,11 +80,13 @@ pub mod test_utils {
     use super::*;
 
     /// Create an in-memory SQLite database for testing
+    /// Note: WAL mode is not supported for in-memory databases
+    /// Foreign keys are disabled during migration, then enabled after
     #[allow(dead_code)]
     pub async fn setup_test_db() -> Result<SqlitePool, DbError> {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")?
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-            .foreign_keys(true);
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Delete)
+            .foreign_keys(false); // Disable during migration
 
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
@@ -92,6 +95,11 @@ pub mod test_utils {
 
         // Run migrations
         sqlx::migrate!("./migrations").run(&pool).await?;
+
+        // Enable foreign keys after migration
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await?;
 
         Ok(pool)
     }

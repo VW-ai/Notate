@@ -5,6 +5,7 @@
 ## When to Use
 
 Use this skill when:
+
 - Writing new Rust code in `apps/desktop/src-tauri/src/`
 - Reviewing backend code for style compliance
 - Designing new features or configurations
@@ -24,11 +25,11 @@ Use this skill when:
 
 ## Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
+| Type                | Convention | Example                             |
+| ------------------- | ---------- | ----------------------------------- |
 | Variables/Functions | snake_case | `capture_count`, `create_capture()` |
-| Types/Structs | PascalCase | `Capture`, `CaptureService` |
-| Modules | snake_case | `capture_service.rs` |
+| Types/Structs       | PascalCase | `Capture`, `CaptureService`         |
+| Modules             | snake_case | `capture_service.rs`                |
 
 ---
 
@@ -53,11 +54,11 @@ apps/desktop/src-tauri/src/
 
 ### 状态分层
 
-| Layer | Description | Example |
-|-------|-------------|---------|
-| Static Config | 编译时确定，代码内置 | 默认 Habits、错误消息 |
-| App Config | 运行时加载，用户可修改 | 快捷键、主题、AI 设置 |
-| Runtime State | 运行时动态变化 | 当前视图、选中项 |
+| Layer         | Description            | Example               |
+| ------------- | ---------------------- | --------------------- |
+| Static Config | 编译时确定，代码内置   | 默认 Habits、错误消息 |
+| App Config    | 运行时加载，用户可修改 | 快捷键、主题、AI 设置 |
+| Runtime State | 运行时动态变化         | 当前视图、选中项      |
 
 ### 配置加载优先级
 
@@ -70,6 +71,7 @@ apps/desktop/src-tauri/src/
 ### 后端状态原则
 
 后端尽量 **无状态**，所有持久状态存储在：
+
 - SQLite（结构化数据）
 - LanceDB（向量数据）
 - 文件系统（文件）
@@ -151,3 +153,16 @@ pub async fn create_capture(input: CreateCaptureInput) -> Result<Capture, Captur
 2. **Async errors as Result** - Never panic on expected failures
 3. **All user data local** - Never upload without explicit consent
 4. **Data first** - Define YAML before writing code
+
+---
+
+## Code Style (Rust)
+
+- 错误处理：`thiserror` 定义领域错误；返回 `Result<T, AppError>`，禁止 `unwrap/expect`；IPC 返回结构化 `ErrorCode`。
+- 日志：使用 `tracing`，关键路径 INFO/ERROR，调试用 DEBUG；禁止 `println!`。
+- 异步：避免阻塞调用；必要时 `tokio::spawn`，跨线程共享用 `Arc`。
+- 分层：`repo` 只做 SQL；`service` 做校验/业务；`commands` 做入参解析和返回 DTO。
+- 配置：禁止硬编码常量，全部通过 `AppConfig`/YAML；缺文件要有默认值。
+- DTO 对齐：serde `rename` 保持 JSON camelCase 与 shared types 一致。
+- 数据库：预编译参数绑定，表/列 snake_case，迁移用 `sqlx::migrate!()` 管理。
+- 测试：每个 service/repo 有正反例；覆盖率工具固定一种（llvm-cov/tarpaulin）。

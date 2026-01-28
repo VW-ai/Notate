@@ -1,6 +1,6 @@
 # ADR-0005: Backend Layering & Data-Driven Foundation
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-01-28
 - **Deciders**: Wayne, Team
 
@@ -64,6 +64,15 @@
 - 团队 Rust 经验有限，分层可能导致样板代码；缓解：提供样例 repo/service 模板。
 - 迁移拆分若操作不慎可能破坏现有数据；缓解：先在开发环境验证，保留备份步骤。
 - Data-driven 文件缺失可能阻断启动；缓解：loader 对缺文件使用默认空结构并记录警告。
+
+### Bad Practices to Avoid (post-M1)
+
+- 在 service 层直接写 SQL 或跨层访问 DB。
+- IPC 返回字符串错误，未对齐 `ErrorCode`/shared types。
+- 硬编码配置值（大小限制、路径、API 域名等）而不走 `AppConfig`/YAML。
+- 启动时不初始化存储目录，导致文件/向量写入失败。
+- 迁移文件非版本化、不可重入；在迁移中做逻辑判断或写业务数据。
+- 使用 `unwrap/expect`/`panic!` 处理可预期错误；在 command 里阻塞 I/O。
 
 ## Related
 
