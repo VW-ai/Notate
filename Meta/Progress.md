@@ -4,6 +4,45 @@ Append-only development log. Add new entries at the top.
 
 ---
 
+## 2026-01-28
+
+### Completed
+
+**M1 Backend Phase 1: Migration System Refactoring**
+
+- Migrated from manual SQL execution to `sqlx::migrate!()` macro
+- Split `001_initial.sql` into 6 separate migration files:
+  - `20260128_001_create_captures.sql`
+  - `20260128_002_create_tags.sql`
+  - `20260128_003_create_capture_tags.sql`
+  - `20260128_004_create_traces.sql`
+  - `20260128_005_create_habits.sql`
+  - `20260128_006_create_settings.sql`
+- Added `migrate` feature to sqlx in Cargo.toml
+- Updated `db/mod.rs`:
+  - Added `MigrateError` to error enum
+  - Exported `get_app_dir()` for storage service use
+  - Added WAL mode verification logging
+  - Enabled foreign keys
+  - Added `test_utils` module with `setup_test_db()` for testing
+- Deleted old `src/db/migrations/` directory
+- Added TODO comment for future async tasks table in migration 006
+
+### In Progress
+
+- Phase 2: Directory initialization (storage_service.rs)
+- Phase 3: ErrorCode system
+- Phase 4: Tags loading
+- Phase 5-8: Remaining backend improvements
+
+### Next
+
+- Create storage_service.rs for directory initialization
+- Implement ErrorCode enum and errors.yaml
+- Add input validation to create_capture
+
+---
+
 ## 2026-01-23
 
 ### Completed
