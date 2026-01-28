@@ -83,16 +83,30 @@ Append-only development log. Add new entries at the top.
 - Registered new commands in lib.rs
 - Total: 19 tests passing
 
+**M1 Backend Phase 6: Data Driven Config Files**
+
+- Created `config/prompts.yaml`:
+  - AI prompt templates for tagging, summary, evolution_hint
+  - Each prompt has system message and limits (max_tags, max_length, etc.)
+- Created `config/habits.yaml`:
+  - Empty habits list as placeholder for M2
+  - Includes example habit structure in comments
+- Updated `config/mod.rs`:
+  - Added `PromptsConfig` with `PromptTemplates` struct
+  - Added `HabitsConfig` with `HabitDef` struct
+  - Implemented `Default` traits for fallback
+  - Added `load()` methods with graceful fallback on parse errors
+- Total: 19 tests passing
+
 ### In Progress
 
-- Phase 6: Data Driven configs
-- Phase 7-8: Remaining backend improvements
+- Phase 7: Observability (tracing)
+- Phase 8: Testing infrastructure
 
 ### Next
 
-- Create prompts.yaml and habits.yaml config files
-- Add observability (tracing logs)
-- Set up testing infrastructure
+- Review and enhance tracing coverage
+- Set up test infrastructure and coverage
 
 ---
 
