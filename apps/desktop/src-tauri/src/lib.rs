@@ -20,6 +20,20 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            tracing::info!("Notate starting, version: {}", env!("CARGO_PKG_VERSION"));
+
+            // Load configuration first (needed for storage init)
+            let cfg = match config::AppConfig::load_defaults() {
+                Ok(cfg) => {
+                    tracing::info!("Config loaded from embedded defaults.yaml");
+                    cfg
+                }
+                Err(e) => {
+                    tracing::error!("Failed to load config: {}", e);
+                    return Err(Box::new(e) as Box<dyn std::error::Error>);
+                }
+            };
+
             // Initialize database
             let app_handle = app.handle().clone();
             tauri::async_runtime::block_on(async {
@@ -28,15 +42,22 @@ pub fn run() {
                 }
             });
 
-            // Load configuration
-            match config::AppConfig::load_defaults() {
-                Ok(cfg) => {
-                    app.manage(cfg);
+            // Initialize storage directories
+            match db::get_app_dir() {
+                Ok(app_dir) => {
+                    if let Err(e) =
+                        services::storage_service::init_directories(&app_dir, &cfg.storage)
+                    {
+                        tracing::error!("Failed to initialize storage directories: {}", e);
+                    }
                 }
                 Err(e) => {
-                    tracing::error!("Failed to load config: {}", e);
+                    tracing::error!("Failed to get app directory: {}", e);
                 }
             }
+
+            // Store config in app state
+            app.manage(cfg);
 
             Ok(())
         })

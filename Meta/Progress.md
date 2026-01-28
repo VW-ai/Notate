@@ -28,18 +28,28 @@ Append-only development log. Add new entries at the top.
 - Deleted old `src/db/migrations/` directory
 - Added TODO comment for future async tasks table in migration 006
 
+**M1 Backend Phase 2: Directory Initialization**
+
+- Created `services/storage_service.rs`:
+  - `StoragePaths` struct with all path references
+  - `init_directories()` function creates: files/images, files/documents, cache/thumbnails, vectors
+  - Comprehensive logging of all initialized paths
+  - `StorageError` enum for error handling
+- Updated `lib.rs` to call storage init after DB init
+- Added `tempfile` dev dependency for testing
+- Added 3 unit tests: path creation, directory creation, idempotency
+
 ### In Progress
 
-- Phase 2: Directory initialization (storage_service.rs)
 - Phase 3: ErrorCode system
 - Phase 4: Tags loading
 - Phase 5-8: Remaining backend improvements
 
 ### Next
 
-- Create storage_service.rs for directory initialization
 - Implement ErrorCode enum and errors.yaml
 - Add input validation to create_capture
+- Implement tags JOIN loading
 
 ---
 
