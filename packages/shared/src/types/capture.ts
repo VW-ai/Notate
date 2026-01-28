@@ -27,6 +27,7 @@ export interface CapturePreview {
 export interface CreateCaptureInput {
   type: CaptureType;
   content: string;
+  sourceUrl?: string;
   // File data is passed separately via Tauri's file handling
   filePath?: string;
   habitId?: string;
@@ -37,10 +38,19 @@ export interface CreateCaptureResponse {
   evolutionHint?: EvolutionHint;
 }
 
+export type EvolutionRelation =
+  | "evolution"
+  | "duplicate"
+  | "supplement"
+  | "unrelated";
+
 export interface EvolutionHint {
   oldCapture: CapturePreview;
   similarity: number;
   daysAgo: number;
+  relation: EvolutionRelation;
+  summary?: string;
+  aspect?: string;
 }
 
 export interface CaptureDetail {
