@@ -1,0 +1,65 @@
+# Error Messages Configuration
+# Data-driven error message templates for internationalization and customization
+
+errors:
+  # Capture Validation Errors
+  CONTENT_TOO_LONG:
+    message_template: 'Content exceeds maximum length of {max_length} characters (got {actual_length})'
+    field: content
+    http_status: 400
+
+  INVALID_CAPTURE_TYPE:
+    message_template: "Invalid capture type: '{type}'. Must be one of: thought, link, file, image"
+    field: type
+    http_status: 400
+
+  INVALID_SOURCE_URL:
+    message_template: "Invalid URL format: '{url}'"
+    field: sourceUrl
+    http_status: 400
+
+  CAPTURE_NOT_FOUND:
+    message_template: 'Capture not found: {id}'
+    http_status: 404
+
+  # File Errors
+  FILE_TOO_LARGE:
+    message_template: 'File exceeds maximum size of {max_size} bytes (got {actual_size})'
+    field: file
+    http_status: 400
+
+  FILE_NOT_FOUND:
+    message_template: 'File not found: {path}'
+    http_status: 404
+
+  # Database Errors
+  DATABASE_ERROR:
+    message_template: 'Database operation failed: {message}'
+    http_status: 500
+
+  MIGRATION_FAILED:
+    message_template: 'Database migration failed: {message}'
+    http_status: 500
+
+  # Storage Errors
+  DIRECTORY_CREATE_FAILED:
+    message_template: 'Failed to create directory: {path}'
+    http_status: 500
+
+  # Config Errors
+  CONFIG_LOAD_FAILED:
+    message_template: 'Failed to load configuration: {message}'
+    http_status: 500
+
+  CONFIG_VALIDATION_FAILED:
+    message_template: 'Configuration validation failed: {message}'
+    http_status: 500
+
+  # General Errors
+  INTERNAL_ERROR:
+    message_template: 'Internal server error: {message}'
+    http_status: 500
+
+  VALIDATION_ERROR:
+    message_template: 'Validation error: {message}'
+    http_status: 400

@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod db;
+mod errors;
 mod services;
 
 use tauri::Manager;

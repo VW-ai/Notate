@@ -39,9 +39,25 @@ Append-only development log. Add new entries at the top.
 - Added `tempfile` dev dependency for testing
 - Added 3 unit tests: path creation, directory creation, idempotency
 
+**M1 Backend Phase 3: ErrorCode System & Input Validation**
+
+- Created `src/errors.rs`:
+  - `ErrorCode` enum with SCREAMING_SNAKE_CASE serialization
+  - `AppError` struct with code, message, and optional field
+  - Builder methods: `content_too_long()`, `invalid_source_url()`, `link_requires_url()`
+- Created `config/errors.yaml` with error message templates
+- Updated `capture_service.rs`:
+  - Added `validate_input()` function
+  - Content length validation against `max_content_length`
+  - URL format validation using `url` crate
+  - Link type requires source_url validation
+- Updated `commands/capture.rs` to pass config to service
+- Added `url` crate dependency for URL parsing
+- Added 6 validation unit tests (all passing)
+- Total: 13 tests passing
+
 ### In Progress
 
-- Phase 3: ErrorCode system
 - Phase 4: Tags loading
 - Phase 5-8: Remaining backend improvements
 
