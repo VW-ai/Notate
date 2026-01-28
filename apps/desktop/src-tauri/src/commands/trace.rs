@@ -6,5 +6,9 @@ use tauri::State;
 #[tauri::command]
 pub async fn get_traces(pool: State<'_, DbPool>) -> Result<Vec<Trace>, String> {
     tracing::debug!("IPC: get_traces called");
-    trace_service::list(&pool).await.map_err(|e| e.to_string())
+    trace_service::list(&pool).await.map_err(|e| {
+        let err_str = e.to_string();
+        tracing::warn!("IPC: get_traces failed: {}", err_str);
+        err_str
+    })
 }

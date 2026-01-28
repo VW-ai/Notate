@@ -16,15 +16,21 @@ pub async fn create_capture(
     );
     capture_service::create(&pool, input, &config.capture)
         .await
-        .map_err(|e| e.into())
+        .map_err(|e| {
+            let err_str: String = e.into();
+            tracing::warn!("IPC: create_capture failed: {}", err_str);
+            err_str
+        })
 }
 
 #[tauri::command]
 pub async fn get_capture(id: String, pool: State<'_, DbPool>) -> Result<Capture, String> {
     tracing::debug!("IPC: get_capture called with id={}", id);
-    capture_service::get_by_id(&pool, &id)
-        .await
-        .map_err(|e| e.into())
+    capture_service::get_by_id(&pool, &id).await.map_err(|e| {
+        let err_str: String = e.into();
+        tracing::warn!("IPC: get_capture failed: {}", err_str);
+        err_str
+    })
 }
 
 #[tauri::command]
@@ -40,7 +46,11 @@ pub async fn get_captures(
     );
     capture_service::list(&pool, limit.unwrap_or(20), offset.unwrap_or(0))
         .await
-        .map_err(|e| e.into())
+        .map_err(|e| {
+            let err_str: String = e.into();
+            tracing::warn!("IPC: get_captures failed: {}", err_str);
+            err_str
+        })
 }
 
 #[tauri::command]
@@ -53,13 +63,19 @@ pub async fn update_capture(
     tracing::debug!("IPC: update_capture called with id={}", id);
     capture_service::update(&pool, &id, &content, &config.capture)
         .await
-        .map_err(|e| e.into())
+        .map_err(|e| {
+            let err_str: String = e.into();
+            tracing::warn!("IPC: update_capture failed: {}", err_str);
+            err_str
+        })
 }
 
 #[tauri::command]
 pub async fn delete_capture(id: String, pool: State<'_, DbPool>) -> Result<(), String> {
     tracing::debug!("IPC: delete_capture called with id={}", id);
-    capture_service::delete(&pool, &id)
-        .await
-        .map_err(|e| e.into())
+    capture_service::delete(&pool, &id).await.map_err(|e| {
+        let err_str: String = e.into();
+        tracing::warn!("IPC: delete_capture failed: {}", err_str);
+        err_str
+    })
 }

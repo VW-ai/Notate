@@ -98,15 +98,30 @@ Append-only development log. Add new entries at the top.
   - Added `load()` methods with graceful fallback on parse errors
 - Total: 19 tests passing
 
+**M1 Backend Phase 7: Observability Enhancement**
+
+- Added tracing to `commands/config.rs` for get_config IPC
+- Added error logging (tracing::warn) to all IPC command error paths:
+  - create_capture, get_capture, get_captures, update_capture, delete_capture
+  - get_traces, get_habits
+- Comprehensive tracing coverage now includes:
+  - App initialization (info level)
+  - Database initialization and WAL mode (info level)
+  - Migration execution (info level)
+  - Storage directory initialization (info level)
+  - Config loading (info level)
+  - All IPC commands (debug level)
+  - All error scenarios (warn level)
+  - Service operations (debug level)
+- Total: 19 tests passing
+
 ### In Progress
 
-- Phase 7: Observability (tracing)
 - Phase 8: Testing infrastructure
 
 ### Next
 
-- Review and enhance tracing coverage
-- Set up test infrastructure and coverage
+- Set up test infrastructure and improve coverage
 
 ---
 
