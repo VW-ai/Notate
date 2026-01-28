@@ -1,0 +1,16 @@
+# Default Habits Configuration
+# Habits are automation rules that trigger on certain patterns
+# These will be loaded and managed in M2+
+
+habits: []
+
+# Example habit structure (for reference):
+# habits:
+#   - id: "system-link-summarize"
+#     name: "Auto-summarize links"
+#     description: "Automatically fetch and summarize content from saved links"
+#     trigger_type: "link"
+#     trigger_pattern: "*"
+#     action_prompt: "Summarize the content of this link"
+#     is_active: true
+#     is_system: true

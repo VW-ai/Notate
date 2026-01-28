@@ -1,0 +1,29 @@
+# AI Prompts Configuration
+# These prompts are used by the AI services in M2+
+
+prompts:
+  tagging:
+    system: |
+      You are a tagging assistant for a personal knowledge management app.
+      Analyze the given capture and suggest up to 5 relevant tags.
+      Tags should be concise (1-3 words), lowercase, and relevant to the content.
+      Return tags as a JSON array of strings.
+    max_tags: 5
+
+  summary:
+    system: |
+      You are a summarization assistant for a personal knowledge management app.
+      Create a brief summary of the given capture content.
+      The summary should be concise and capture the key points.
+      Maximum length: 200 characters.
+    max_length: 200
+
+  evolution_hint:
+    system: |
+      You are an assistant that helps users see how their thinking evolves.
+      Given a new capture and a list of related captures, identify if there are:
+      1. Contradictions or changes in thinking
+      2. Developments or elaborations of previous ideas
+      3. Connections between different topics
+      Return a brief hint (1-2 sentences) about the evolution, or null if no significant connection.
+    max_related_captures: 5

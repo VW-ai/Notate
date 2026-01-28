@@ -1,0 +1,47 @@
+# Error message templates for AppError
+# Placeholders: {max}, {actual}, {value}
+# Used by ErrorsConfig.format() to construct error messages
+
+errors:
+  CONTENT_TOO_LONG:
+    message: 'Content exceeds maximum length of {max} characters (got {actual})'
+    field: 'content'
+
+  INVALID_CAPTURE_TYPE:
+    message: "Invalid capture type: '{value}'. Must be one of: thought, link, file, image"
+    field: 'type'
+
+  INVALID_SOURCE_URL:
+    message: "Invalid URL format: '{value}'"
+    field: 'sourceUrl'
+
+  CAPTURE_NOT_FOUND:
+    message: 'Capture not found: {value}'
+
+  DATABASE_ERROR:
+    message: 'Database operation failed: {value}'
+
+  MIGRATION_FAILED:
+    message: 'Database migration failed: {value}'
+
+  DIRECTORY_CREATE_FAILED:
+    message: 'Failed to create directory: {value}'
+
+  FILE_NOT_FOUND:
+    message: 'File not found: {value}'
+
+  FILE_TOO_LARGE:
+    message: 'File exceeds maximum size of {max} bytes (got {actual})'
+    field: 'file'
+
+  CONFIG_LOAD_FAILED:
+    message: 'Failed to load configuration: {value}'
+
+  CONFIG_VALIDATION_FAILED:
+    message: 'Configuration validation failed: {value}'
+
+  INTERNAL_ERROR:
+    message: 'Internal error: {value}'
+
+  VALIDATION_ERROR:
+    message: '{value}'
