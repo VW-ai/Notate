@@ -56,10 +56,21 @@ Append-only development log. Add new entries at the top.
 - Added 6 validation unit tests (all passing)
 - Total: 13 tests passing
 
+**M1 Backend Phase 4: Tags Loading via JOIN**
+
+- Updated `capture_service.rs`:
+  - Added `parse_tags_from_concat()` helper function
+  - Modified `get_by_id()` to JOIN with capture_tags and tags tables
+  - Modified `list()` to JOIN with capture_tags and tags tables
+  - Uses GROUP_CONCAT to aggregate tags: "id:name:color|id:name:color"
+- Captures now return their associated tags array
+- Added 4 unit tests for tags parsing
+- Total: 17 tests passing
+
 ### In Progress
 
-- Phase 4: Tags loading
-- Phase 5-8: Remaining backend improvements
+- Phase 5: Trace/Habit models
+- Phase 6-8: Remaining backend improvements
 
 ### Next
 
