@@ -115,13 +115,39 @@ Append-only development log. Add new entries at the top.
   - Service operations (debug level)
 - Total: 19 tests passing
 
-### In Progress
+**M1 Backend Phase 8: Testing Infrastructure**
 
-- Phase 8: Testing infrastructure
+- Added config module tests:
+  - test_load_defaults_success - verifies defaults.yaml loads correctly
+  - test_prompts_config_default - tests PromptsConfig defaults
+  - test_habits_config_default - tests HabitsConfig defaults
+  - test_prompts_config_load - tests embedded YAML loading
+  - test_habits_config_load - tests habits YAML loading
+- Added capture model tests:
+  - test_capture_type_as_str - CaptureType to string conversion
+  - test_capture_type_from_str - string to CaptureType parsing
+  - test_capture_type_serialization - JSON serialization
+  - test_create_capture_input_serialization - input struct serialization
+- Total: 28 tests passing (increased from 19)
+- CI workflow configured with cargo test in GitHub Actions
+
+### Summary - M1 Backend Phases 1-8 Complete
+
+All 8 backend improvement phases completed:
+
+1. Migration system with sqlx::migrate!()
+2. Storage directory initialization
+3. ErrorCode system with validation
+4. Tags loading via JOIN
+5. Trace/Habit models and placeholder APIs
+6. Data-driven config files (prompts.yaml, habits.yaml)
+7. Comprehensive tracing coverage
+8. 28 unit tests covering all core functionality
 
 ### Next
 
-- Set up test infrastructure and improve coverage
+- Phase 9: Hotkey & Overlay (frontend implementation)
+- M2 planning
 
 ---
 

@@ -236,3 +236,45 @@ impl AppConfig {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_defaults_success() {
+        let config = AppConfig::load_defaults();
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.app.name, "Notate");
+        assert!(config.capture.max_content_length > 0);
+    }
+
+    #[test]
+    fn test_prompts_config_default() {
+        let config = PromptsConfig::default();
+        assert_eq!(config.prompts.tagging.max_tags, 5);
+        assert_eq!(config.prompts.summary.max_length, 200);
+        assert_eq!(config.prompts.evolution_hint.max_related_captures, 5);
+    }
+
+    #[test]
+    fn test_habits_config_default() {
+        let config = HabitsConfig::default();
+        assert!(config.habits.is_empty());
+    }
+
+    #[test]
+    fn test_prompts_config_load() {
+        let config = PromptsConfig::load();
+        // Should load from prompts.yaml or use defaults
+        assert!(config.prompts.tagging.max_tags > 0);
+    }
+
+    #[test]
+    fn test_habits_config_load() {
+        let config = HabitsConfig::load();
+        // habits.yaml is empty, so should return empty vec
+        assert!(config.habits.is_empty());
+    }
+}
