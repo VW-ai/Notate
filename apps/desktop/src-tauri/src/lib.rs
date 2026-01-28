@@ -69,6 +69,8 @@ pub fn run() {
             commands::capture::update_capture,
             commands::capture::delete_capture,
             commands::config::get_config,
+            commands::trace::get_traces,
+            commands::habit::get_habits,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

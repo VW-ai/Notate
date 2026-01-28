@@ -1,0 +1,10 @@
+use crate::db::models::trace::Trace;
+use crate::db::DbPool;
+use crate::services::trace_service;
+use tauri::State;
+
+#[tauri::command]
+pub async fn get_traces(pool: State<'_, DbPool>) -> Result<Vec<Trace>, String> {
+    tracing::debug!("IPC: get_traces called");
+    trace_service::list(&pool).await.map_err(|e| e.to_string())
+}

@@ -67,16 +67,32 @@ Append-only development log. Add new entries at the top.
 - Added 4 unit tests for tags parsing
 - Total: 17 tests passing
 
+**M1 Backend Phase 5: Trace/Habit Models & Placeholder APIs**
+
+- Created `db/models/trace.rs`:
+  - `Trace` struct with id, title, is_auto, captures, timestamps
+  - `CaptureTrace` struct for capture-trace positioning
+- Created `db/models/habit.rs`:
+  - `TriggerType` enum (Link, FileType, Manual)
+  - `Habit` struct matching shared TypeScript types
+  - 2 unit tests for TriggerType
+- Created `services/trace_service.rs` (stub returning empty vec)
+- Created `services/habit_service.rs` (stub returning empty vec)
+- Created `commands/trace.rs` with `get_traces` IPC command
+- Created `commands/habit.rs` with `get_habits` IPC command
+- Registered new commands in lib.rs
+- Total: 19 tests passing
+
 ### In Progress
 
-- Phase 5: Trace/Habit models
-- Phase 6-8: Remaining backend improvements
+- Phase 6: Data Driven configs
+- Phase 7-8: Remaining backend improvements
 
 ### Next
 
-- Implement ErrorCode enum and errors.yaml
-- Add input validation to create_capture
-- Implement tags JOIN loading
+- Create prompts.yaml and habits.yaml config files
+- Add observability (tracing logs)
+- Set up testing infrastructure
 
 ---
 
